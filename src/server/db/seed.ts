@@ -59,9 +59,9 @@ const CATALOG: { name: string; slug: string; services: ServiceSeed[] }[] = [
     name: "Injetáveis",
     slug: "injetaveis",
     services: [
-      { name: "Toxina botulínica", slug: "toxina-botulinica", description: "Suavização de linhas de expressão. Requer avaliação.", durationMin: 30, priceCents: 120000, priceIsFrom: true, cleanupBufferMin: 15, requiresAssessment: true },
-      { name: "Preenchimento com ácido hialurônico", slug: "preenchimento-acido-hialuronico", description: "Volume e contorno. Requer avaliação.", durationMin: 45, priceCents: 150000, priceIsFrom: true, cleanupBufferMin: 15, requiresAssessment: true },
-      { name: "Bioestimulador de colágeno", slug: "bioestimulador-colageno", description: "Firmeza progressiva da pele. Requer avaliação.", durationMin: 45, priceCents: 180000, priceIsFrom: true, cleanupBufferMin: 15, requiresAssessment: true },
+      { name: "Toxina botulínica", slug: "toxina-botulinica", description: "Suavização de linhas de expressão.", durationMin: 30, priceCents: 120000, priceIsFrom: true, cleanupBufferMin: 15, requiresAssessment: true },
+      { name: "Preenchimento com ácido hialurônico", slug: "preenchimento-acido-hialuronico", description: "Volume e contorno.", durationMin: 45, priceCents: 150000, priceIsFrom: true, cleanupBufferMin: 15, requiresAssessment: true },
+      { name: "Bioestimulador de colágeno", slug: "bioestimulador-colageno", description: "Firmeza progressiva da pele.", durationMin: 45, priceCents: 180000, priceIsFrom: true, cleanupBufferMin: 15, requiresAssessment: true },
     ],
   },
   {
