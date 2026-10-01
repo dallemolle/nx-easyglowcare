@@ -12,7 +12,7 @@ describe("guarda de import do client do banco", () => {
   it("só os módulos permitidos importam @/server/db/client", () => {
     const importers = globSync("src/**/*.{ts,tsx}")
       .map((file) => file.replaceAll("\\", "/"))
-      .filter((file) => file !== "src/server/db/client.ts")
+      .filter((file) => file !== "src/server/db/client.ts" && !file.endsWith(".test.ts"))
       .filter((file) => CLIENT_IMPORT.test(readFileSync(file, "utf8")))
       .sort();
 

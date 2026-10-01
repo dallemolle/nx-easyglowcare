@@ -18,7 +18,13 @@ if (new URL(DATABASE_URL).hostname === "db.localtest.me") {
   neonConfig.pipelineConnect = false;
 }
 
-const pool = new Pool({ connectionString: DATABASE_URL });
+export const pool = new Pool({ connectionString: DATABASE_URL });
+
+// Conexões ociosas podem cair (autosuspend do Neon, rede). Sem este listener o erro
+// fica sem tratamento e derruba a instância inteira. Loga só a mensagem, nunca a URL.
+pool.on("error", (error: Error) => {
+  console.error(`[db] erro em conexão ociosa do pool: ${error.message}`);
+});
 
 export const db = drizzle({ client: pool, schema, casing: "snake_case" });
 export type Db = typeof db;
