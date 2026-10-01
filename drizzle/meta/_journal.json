@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1790815705001,
+      "tag": "0000_enable_btree_gist",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790815720186,
+      "tag": "0001_base_tenancy_catalog",
+      "breakpoints": true
+    }
+  ]
+}

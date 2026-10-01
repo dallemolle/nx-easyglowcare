@@ -1,2 +1,3 @@
-// Reexporta todas as tabelas. Preenchido a partir da Tarefa 3.
-export {};
+export * from "./catalog";
+export * from "./resources";
+export * from "./tenancy";
