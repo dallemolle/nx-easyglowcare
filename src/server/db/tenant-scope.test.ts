@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { getTestDb, resetDb } from "../../../test/db";
@@ -48,6 +48,16 @@ describe("tenantScope", () => {
   it("select combina filtros extras com o tenant", async () => {
     const rows = await a.select(serviceCategories, eq(serviceCategories.slug, "facial"));
     expect(rows.map((r) => r.id)).toEqual([catA.id]);
+  });
+
+  it("condição em SQL cru com OR não escapa do tenant", async () => {
+    const rows = await a.select(serviceCategories, sql`${serviceCategories.slug} = 'x' or true`);
+    expect(rows.map((r) => r.id)).toEqual([catA.id]);
+  });
+
+  it("update com condição OR não alcança outro tenant", async () => {
+    await a.update(serviceCategories, { name: "z" }, sql`false or true`);
+    expect((await findCategory(catB.id)).name).toBe("Facial B");
   });
 
   it("insert força o tenant do escopo", async () => {

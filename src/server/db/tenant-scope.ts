@@ -1,4 +1,4 @@
-import { and, eq, type SQL } from "drizzle-orm";
+import { and, eq, sql, type SQL } from "drizzle-orm";
 import type { PgColumn, PgDatabase, PgQueryResultHKT, PgTable } from "drizzle-orm/pg-core";
 import { z } from "zod";
 
@@ -58,8 +58,10 @@ function withoutTenantId<V extends object>(values: V): Omit<V, "tenantId"> {
 export function tenantScope(db: AnyPgDatabase, tenantId: string): TenantScope {
   if (!uuidSchema.safeParse(tenantId).success) throw new InvalidTenantIdError();
 
+  // `and()` do Drizzle não parentiza cada condição: um `sql\`a or b\`` cru escaparia do filtro
+  // de tenant ("tenant = $1 and a or b"). Por isso cada condição extra vai entre parênteses.
   const where = (table: TenantTable, ...conds: Condition[]): SQL =>
-    and(eq(table.tenantId, tenantId), ...conds) as SQL;
+    and(eq(table.tenantId, tenantId), ...conds.map((c) => (c ? sql`(${c})` : c))) as SQL;
 
   // Os builders do Drizzle não inferem bem tabelas genéricas; os tipos públicos acima garantem o contrato.
   return {
