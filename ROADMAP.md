@@ -18,16 +18,16 @@ Legenda usada em todos os itens:
 
 ## 1. Fase 0 — Fundação (tudo [VN])
 
-- [ ] Repositório Next.js + TypeScript + Tailwind + shadcn/ui + Drizzle
-- [ ] Projeto Neon em `aws-sa-east-1`, integração Vercel ↔ Neon com branch por preview
-- [ ] Functions na região `gru1`
-- [ ] Schema multi-tenant (`tenants`, `locations`), helper de escopo por tenant
+- [x] Repositório Next.js + TypeScript + Tailwind + shadcn/ui + Drizzle
+- [ ] Projeto Neon em `aws-sa-east-1`, integração Vercel ↔ Neon com branch por preview (código pronto; falta criar o projeto e conectar à Vercel)
+- [x] Functions na região `gru1`
+- [x] Schema multi-tenant (`tenants`, `locations`), helper de escopo por tenant
 - [ ] Rotas `/[slug]` (site público), `/minha-conta` (cliente), `/admin` (clínica)
 - [ ] Login da equipe (e-mail + senha com Argon2, ou link mágico quando houver e-mail)
 - [ ] Permissões: dono, recepção, profissional
 - [ ] Adapters com implementação `console`/`mock`: mensagens, pagamento, assinatura
 - [ ] Tabela `message_outbox` + rota `/api/cron/outbox`
-- [ ] `audit_log`, seed da "Clínica Bella", CI (lint, typecheck, testes)
+- [ ] `audit_log`, seed da "EasyGlowCare", CI (lint, typecheck, testes) (seed feito; `audit_log` e CI pendentes)
 - [ ] PWA: manifest, ícones, service worker, tela "instalar app"
 
 ## 2. MVP
@@ -162,6 +162,7 @@ Legenda usada em todos os itens:
 | Rate limit do OTP e do login | **Upstash Redis** (Marketplace da Vercel) | MVP/V2 | Até lá, contagem em tabela do Postgres |
 | Fila com horário exato e novas tentativas | **Upstash QStash** ou **Inngest** | V2 | Opcional; o outbox + cron do Pro resolve no começo |
 | Backup/restauração | Recuperação por ponto no tempo do Neon (plano pago) | Antes de dados reais | Verificar a janela de retenção do plano escolhido |
+| Defesa em profundidade no isolamento | RLS do Postgres por tenant | Antes de dados reais | Helper de aplicação já existe; RLS exige transação por request |
 | Proteção contra bots no pré-cadastro | Vercel Firewall / Bot protection, ou Cloudflare Turnstile | MVP | Evita gastar mensagens de OTP com bots |
 
 ### Para fases futuras
@@ -186,7 +187,7 @@ Legenda usada em todos os itens:
 
 **Etapa 0 — Fundação**
 ```
-Leia CLAUDE.md e ROADMAP.md. Execute a Fase 0 do ROADMAP. Antes de codar, entre em modo de planejamento e me mostre: estrutura de pastas, pacotes a instalar, primeiras tabelas do schema Drizzle e ordem de implementação. Crie .env.example, seed da "Clínica Bella" e o helper de escopo por tenant com teste.
+Leia CLAUDE.md e ROADMAP.md. Execute a Fase 0 do ROADMAP. Antes de codar, entre em modo de planejamento e me mostre: estrutura de pastas, pacotes a instalar, primeiras tabelas do schema Drizzle e ordem de implementação. Crie .env.example, seed da "EasyGlowCare" e o helper de escopo por tenant com teste.
 ```
 
 **Etapa 1 — Entrada sem senha**
