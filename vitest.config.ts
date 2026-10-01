@@ -11,6 +11,7 @@ export default defineConfig({
   },
   test: {
     environment: "node",
+    globalSetup: ["./test/global-setup.ts"],
     // Os testes de banco compartilham o mesmo Postgres de teste.
     fileParallelism: false,
   },
