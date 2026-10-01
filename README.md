@@ -36,7 +36,10 @@ pnpm build
    A integração injeta `DATABASE_URL` (pooled) e `DATABASE_URL_UNPOOLED` (direta) em cada ambiente.
 3. Aplique as migrations no banco principal com a URL direta:
    `DATABASE_URL_UNPOOLED="postgres://…" pnpm db:migrate`
-4. Opcional: para popular um branch de preview com a clínica de exemplo, use
-   `pnpm db:seed -- --force`. Sem `--force`, o seed recusa qualquer banco que não seja local.
+4. Opcional: para popular um branch de preview com a clínica de exemplo, passe a URL direta do
+   branch na linha de comando (ela tem precedência sobre o `.env.local`, que aponta para o Docker):
+   `DATABASE_URL_UNPOOLED="postgres://…" pnpm db:seed -- --force`.
+   Sem `--force`, o seed recusa qualquer banco que não seja local. O script lê o `.env.local`,
+   então esse arquivo precisa existir.
 
 As Functions rodam em `gru1` (São Paulo), definido no `vercel.json`.
