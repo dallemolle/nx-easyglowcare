@@ -3,8 +3,12 @@ import pg from "pg";
 
 import * as schema from "@/server/db/schema";
 
+import { assertTestDatabase } from "./db-guard";
+
 export const TEST_DATABASE_URL =
   process.env.TEST_DATABASE_URL ?? "postgres://postgres:postgres@localhost:5432/easyglowcare_test";
+
+assertTestDatabase(TEST_DATABASE_URL);
 
 export const testPool = new pg.Pool({ connectionString: TEST_DATABASE_URL, max: 4 });
 
