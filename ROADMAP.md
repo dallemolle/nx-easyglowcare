@@ -22,9 +22,9 @@ Legenda usada em todos os itens:
 - [ ] Projeto Neon em `aws-sa-east-1`, integração Vercel ↔ Neon com branch por preview (código pronto; falta criar o projeto e conectar à Vercel)
 - [x] Functions na região `gru1`
 - [x] Schema multi-tenant (`tenants`, `locations`), helper de escopo por tenant
-- [ ] Rotas `/[slug]` (site público), `/minha-conta` (cliente), `/admin` (clínica)
-- [ ] Login da equipe (e-mail + senha com Argon2, ou link mágico quando houver e-mail)
-- [ ] Permissões: dono, recepção, profissional
+- [x] Rotas `/[slug]` (site público), `/minha-conta` (cliente), `/admin` (clínica)
+- [x] Login da equipe (e-mail + senha com Argon2, ou link mágico quando houver e-mail)
+- [x] Permissões: dono, recepção, profissional
 - [ ] Adapters com implementação `console`/`mock`: mensagens, pagamento, assinatura
 - [ ] Tabela `message_outbox` + rota `/api/cron/outbox`
 - [ ] `audit_log`, seed da "EasyGlowCare", CI (lint, typecheck, testes) (seed feito; `audit_log` e CI pendentes)
@@ -163,6 +163,7 @@ Legenda usada em todos os itens:
 | Fila com horário exato e novas tentativas | **Upstash QStash** ou **Inngest** | V2 | Opcional; o outbox + cron do Pro resolve no começo |
 | Backup/restauração | Recuperação por ponto no tempo do Neon (plano pago) | Antes de dados reais | Verificar a janela de retenção do plano escolhido |
 | Defesa em profundidade no isolamento | RLS do Postgres por tenant | Antes de dados reais | Helper de aplicação já existe; RLS exige transação por request |
+| Retenção dos registros de login | Limpeza de `login_attempts` por cron | 0C | Guarda e-mail e IP |
 | Proteção contra bots no pré-cadastro | Vercel Firewall / Bot protection, ou Cloudflare Turnstile | MVP | Evita gastar mensagens de OTP com bots |
 
 ### Para fases futuras
