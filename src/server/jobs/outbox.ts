@@ -64,6 +64,19 @@ async function claimBatch(db: AnyPgDatabase, now: Date): Promise<MessageOutbox[]
 }
 
 /**
+ * A conclusão só vale se a reserva ainda é desta execução (status `sending` e mesma tentativa).
+ * Se a execução demorou além do prazo e outra retomou a linha, a escrita tardia não pode
+ * sobrescrever o resultado da outra; a linha perdida simplesmente não entra nas contagens.
+ */
+function ownLease(message: MessageOutbox) {
+  return and(
+    eq(messageOutbox.id, message.id),
+    eq(messageOutbox.status, "sending"),
+    eq(messageOutbox.attempts, message.attempts),
+  );
+}
+
+/**
  * Envia as mensagens vencidas da fila. Entrega "ao menos uma vez": se o provedor aceitar e a
  * gravação do sucesso falhar, a mensagem volta a ser enviada quando a reserva expirar.
  */
@@ -89,7 +102,7 @@ export async function processOutbox(
       // Nunca `error.message`: a mensagem do provedor pode trazer o destinatário.
       const lastError = describeUnexpectedError(error);
       const exhausted = message.attempts >= OUTBOX_MAX_ATTEMPTS;
-      await db
+      const updated = await db
         .update(messageOutbox)
         .set(
           exhausted
@@ -101,17 +114,20 @@ export async function processOutbox(
                 sendAt: new Date(now.getTime() + OUTBOX_RETRY_DELAYS_MS[message.attempts - 1]),
               },
         )
-        .where(eq(messageOutbox.id, message.id));
+        .where(ownLease(message))
+        .returning({ id: messageOutbox.id });
+      if (updated.length === 0) continue;
       if (exhausted) result.failed += 1;
       else result.retried += 1;
       continue;
     }
 
-    await db
+    const updated = await db
       .update(messageOutbox)
       .set({ status: "sent", sentAt: now, providerMessageId, lockedUntil: null, lastError: null })
-      .where(eq(messageOutbox.id, message.id));
-    result.sent += 1;
+      .where(ownLease(message))
+      .returning({ id: messageOutbox.id });
+    if (updated.length > 0) result.sent += 1;
   }
 
   console.info(

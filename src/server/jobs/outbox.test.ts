@@ -302,6 +302,54 @@ describe("processOutbox: concorrência", () => {
     }
   });
 
+  describe("reserva retomada por outra execução durante o envio", () => {
+    async function finishedByAnotherRun(id: string) {
+      await db
+        .update(messageOutbox)
+        .set({
+          status: "sent",
+          attempts: 2,
+          providerMessageId: "outra-execucao",
+          sentAt: new Date(NOW.getTime() + MINUTE),
+          lockedUntil: null,
+        })
+        .where(eq(messageOutbox.id, id));
+    }
+
+    it("falha tardia não sobrescreve a mensagem já enviada pela outra execução", async () => {
+      const message = await insertMessage();
+      const provider: Provider = {
+        async sendTemplate(input) {
+          await finishedByAnotherRun(message.id);
+          throw new ProviderDown(input.recipient);
+        },
+      };
+
+      expect(await processOutbox(db, provider, NOW)).toEqual({ claimed: 1, sent: 0, retried: 0, failed: 0 });
+
+      const row = await reload(message.id);
+      expect(row.status).toBe("sent");
+      expect(row.providerMessageId).toBe("outra-execucao");
+      expect(row.lastError).toBeNull();
+    });
+
+    it("sucesso tardio não sobrescreve provider_message_id nem sent_at da outra execução", async () => {
+      const message = await insertMessage();
+      const provider: Provider = {
+        async sendTemplate() {
+          await finishedByAnotherRun(message.id);
+          return { providerMessageId: "execucao-lenta" };
+        },
+      };
+
+      expect(await processOutbox(db, provider, NOW)).toEqual({ claimed: 1, sent: 0, retried: 0, failed: 0 });
+
+      const row = await reload(message.id);
+      expect(row.providerMessageId).toBe("outra-execucao");
+      expect(row.sentAt).toEqual(new Date(NOW.getTime() + MINUTE));
+    });
+  });
+
   it("a reserva grava sending, locked_until = agora + 5 min e soma a tentativa antes de enviar", async () => {
     const message = await insertMessage();
     let during: MessageOutbox | undefined;
