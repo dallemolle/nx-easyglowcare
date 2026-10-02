@@ -285,6 +285,18 @@ describe("regra do último dono ativo", () => {
 });
 
 describe("changeStaffRole para professional", () => {
+  it("devolve o papel anterior", async () => {
+    const { user } = await createStaff(scopeA, {
+      name: "Rita Recepção",
+      email: "rita@clinica-a.test",
+      role: "reception",
+    });
+
+    expect(await changeStaffRole(scopeA, ownerA, user.id, "professional")).toEqual({
+      previousRole: "reception",
+    });
+  });
+
   it("cria o professionals vinculado se não existir", async () => {
     const { user } = await createStaff(scopeA, {
       name: "Clara Recepção",

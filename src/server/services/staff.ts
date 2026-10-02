@@ -117,7 +117,7 @@ export async function changeStaffRole(
   actor: Actor,
   staffUserId: string,
   role: StaffRole,
-): Promise<void> {
+): Promise<{ previousRole: StaffRole }> {
   if (staffUserId === actor.id) throw new StaffError(SELF_ACCOUNT_ERROR);
   const target = await requireStaffUser(scope, staffUserId);
 
@@ -126,6 +126,8 @@ export async function changeStaffRole(
   await scope.update(staffUsers, { role }, eq(staffUsers.id, staffUserId));
 
   if (role === "professional") await ensureProfessionalLink(scope, target);
+
+  return { previousRole: target.role };
 }
 
 /** Ativa/desativa outro usuário da equipe; desativar revoga todas as sessões dele. */

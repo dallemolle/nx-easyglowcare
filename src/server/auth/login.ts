@@ -14,7 +14,14 @@ const INVALID_CREDENTIALS_ERROR = "E-mail ou senha incorretos.";
 const BLOCKED_ERROR = "Muitas tentativas. Tente novamente em alguns minutos.";
 
 export type LoginResult =
-  | { ok: true; cookieValue: string; expiresAt: Date; mustChangePassword: boolean }
+  | {
+      ok: true;
+      cookieValue: string;
+      expiresAt: Date;
+      mustChangePassword: boolean;
+      staffUserId: string;
+      tenantId: string;
+    }
   | { ok: false; error: string };
 
 // Roda antes de o tenant ser conhecido (é o login quem descobre o tenant do usuário),
@@ -65,5 +72,12 @@ export async function login(
 
   const { cookieValue, expiresAt } = await createSession(db, user, meta, now);
 
-  return { ok: true, cookieValue, expiresAt, mustChangePassword: user.mustChangePassword };
+  return {
+    ok: true,
+    cookieValue,
+    expiresAt,
+    mustChangePassword: user.mustChangePassword,
+    staffUserId: user.id,
+    tenantId: user.tenantId,
+  };
 }

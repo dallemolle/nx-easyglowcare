@@ -62,7 +62,9 @@ export async function changeRoleAction(id: unknown, role: unknown): Promise<Staf
   const parsedId = idSchema.safeParse(id);
   const parsedRole = staffRoleSchema.safeParse(role);
   if (!parsedId.success || !parsedRole.success) return INVALID_INPUT;
-  return run(staff, () => changeStaffRole(staff.scope, staff.user, parsedId.data, parsedRole.data));
+  return run(staff, async () => {
+    await changeStaffRole(staff.scope, staff.user, parsedId.data, parsedRole.data);
+  });
 }
 
 export async function setActiveAction(id: unknown, isActive: unknown): Promise<StaffActionResult> {
