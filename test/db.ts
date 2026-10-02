@@ -18,7 +18,11 @@ export function getTestDb() {
   return testDb;
 }
 
-/** Apaga todos os dados de negócio (o cascade a partir de `tenants` limpa o resto). */
+/**
+ * Apaga todos os dados de negócio (o cascade a partir de `tenants` limpa o resto).
+ * `login_attempts` é truncada à parte porque admite `tenant_id` nulo (tentativa com
+ * e-mail inexistente) e essas linhas não são removidas pelo cascade de `tenants`.
+ */
 export async function resetDb(): Promise<void> {
-  await testPool.query("TRUNCATE tenants CASCADE");
+  await testPool.query("TRUNCATE tenants, login_attempts CASCADE");
 }
