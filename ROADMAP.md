@@ -171,6 +171,8 @@ Legenda usada em todos os itens:
 | Headers de segurança e CSP | Configurar no `next.config` (X-Frame-Options, nosniff, Referrer-Policy e CSP) | 0D | Já exigido pelo CLAUDE.md |
 | Transações no `tenantScope` | Executar operações compostas em transação | Antes de clínicas reais | Regra do último dono e vínculo de profissional sem condição de corrida |
 | Helper único para Server Actions autenticadas | `requireStaff` + renovação da sessão num só lugar | MVP | Antes de o MVP criar dezenas de actions |
+| Robustez da fila antes dos lembretes | Isolar o erro por mensagem, limite de tempo por envio e por execução no processador; erro sem dado pessoal ao enfileirar | Antes da Etapa 4 | Hoje um erro de banco no meio do lote interrompe a execução, e um provedor lento pode estourar os 60 s |
+| Guarda das mensagens que falharam | Definir prazo para apagar mensagens `failed` (guardam destinatário e conteúdo) | Antes da Etapa 4 | Hoje nunca são apagadas, para investigação |
 | Comando para criar clínica | `tenant:create` para criar uma clínica em produção sem usar o seed | Antes de clínicas reais | Hoje só o seed cria clínica (e apaga e recria a de exemplo) |
 
 ### Para fases futuras

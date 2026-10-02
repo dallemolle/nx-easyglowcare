@@ -40,6 +40,13 @@ async function main() {
       role: args.role,
     });
 
+    console.log(`E-mail: ${user.email}`);
+    console.log(`Papel: ${user.role}`);
+    console.log(`Senha provisória: ${temporaryPassword}`);
+    console.log("Anote agora: ela não será mostrada de novo.");
+
+    // Auditoria só depois de mostrar a senha: ela aparece uma única vez e, se a gravação
+    // travar ou o comando for interrompido, a pessoa já existe e a senha se perderia.
     // Ator "system": o comando roda no terminal, sem usuário logado.
     await safeRecordAudit(scope, {
       actor: { type: "system" },
@@ -48,11 +55,6 @@ async function main() {
       entityId: user.id,
       metadata: { role: user.role },
     });
-
-    console.log(`E-mail: ${user.email}`);
-    console.log(`Papel: ${user.role}`);
-    console.log(`Senha provisória: ${temporaryPassword}`);
-    console.log("Anote agora: ela não será mostrada de novo.");
   } finally {
     await pool.end();
   }

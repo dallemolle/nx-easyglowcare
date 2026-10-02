@@ -348,6 +348,52 @@ describe("processOutbox: concorrência", () => {
       expect(row.providerMessageId).toBe("outra-execucao");
       expect(row.sentAt).toEqual(new Date(NOW.getTime() + MINUTE));
     });
+
+    // A outra execução retomou a linha (mais uma tentativa) e ainda está enviando.
+    async function resumedByAnotherRun(id: string, lockedUntil: Date) {
+      await db
+        .update(messageOutbox)
+        .set({ status: "sending", attempts: 2, lockedUntil })
+        .where(eq(messageOutbox.id, id));
+    }
+
+    it("falha tardia não mexe na reserva que a outra execução ainda mantém", async () => {
+      const message = await insertMessage();
+      const lockedUntil = new Date(NOW.getTime() + 5 * MINUTE);
+      const provider: Provider = {
+        async sendTemplate(input) {
+          await resumedByAnotherRun(message.id, lockedUntil);
+          throw new ProviderDown(input.recipient);
+        },
+      };
+
+      expect(await processOutbox(db, provider, NOW)).toEqual({ claimed: 1, sent: 0, retried: 0, failed: 0 });
+
+      const row = await reload(message.id);
+      expect(row.status).toBe("sending");
+      expect(row.attempts).toBe(2);
+      expect(row.lockedUntil).toEqual(lockedUntil);
+      expect(row.sendAt).toEqual(message.sendAt);
+      expect(row.lastError).toBeNull();
+    });
+
+    it("sucesso tardio não mexe na reserva que a outra execução ainda mantém", async () => {
+      const message = await insertMessage();
+      const provider: Provider = {
+        async sendTemplate() {
+          await resumedByAnotherRun(message.id, new Date(NOW.getTime() + 5 * MINUTE));
+          return { providerMessageId: "execucao-lenta" };
+        },
+      };
+
+      expect(await processOutbox(db, provider, NOW)).toEqual({ claimed: 1, sent: 0, retried: 0, failed: 0 });
+
+      const row = await reload(message.id);
+      expect(row.status).toBe("sending");
+      expect(row.attempts).toBe(2);
+      expect(row.providerMessageId).toBeNull();
+      expect(row.sentAt).toBeNull();
+    });
   });
 
   it("a reserva grava sending, locked_until = agora + 5 min e soma a tentativa antes de enviar", async () => {

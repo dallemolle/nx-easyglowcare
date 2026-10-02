@@ -2721,7 +2721,7 @@ docker compose exec -T postgres psql -U postgres -d easyglowcare -c "select acti
 
 ---
 
-## Depois do merge (fica com o dono do repositório)
+## Fica com o dono do repositório
 
-1. Cadastrar `CRON_SECRET` na Vercel, em Production e em Preview, com valores diferentes.
-2. Rodar `pnpm db:migrate` em staging e em produção (passo a passo no README, seção "Neon + Vercel").
+1. Antes do merge: cadastrar `CRON_SECRET` na Vercel (Production e Preview) e rodar `pnpm db:migrate` em staging e em produção.
+2. Fazer o merge e o deploy (os crons só rodam em produção).

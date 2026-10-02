@@ -1,7 +1,7 @@
 # Fase 0C: Fila de mensagens, adapters, auditoria e limpeza (design)
 
 - **Data:** 02/10/2026
-- **Status:** aguardando revisão
+- **Status:** aprovada e implementada
 - **Referências:** `CLAUDE.md` (seções 4, 6 e 7), `ROADMAP.md` (Fase 0), specs do 0A e do 0B
 
 ## 1. Contexto e objetivo
@@ -247,6 +247,6 @@ Os testes de ponta a ponta existentes continuam passando; o 0C não acrescenta t
 - Depois de um login e de um cadastro pela tela de equipe, as linhas aparecem no `audit_log`.
 - Documentos da seção 11 atualizados.
 
-**Depois do merge, fica com o usuário:**
-1. Cadastrar `CRON_SECRET` na Vercel (Production e Preview).
-2. Rodar `pnpm db:migrate` em staging e em produção.
+**Fica com o usuário:**
+1. Antes do merge: cadastrar `CRON_SECRET` na Vercel (Production e Preview) e rodar `pnpm db:migrate` em staging e em produção.
+2. Fazer o merge e o deploy (os crons só rodam em produção).

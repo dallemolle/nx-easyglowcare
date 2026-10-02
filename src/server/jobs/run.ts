@@ -8,7 +8,7 @@ import { processOutbox, type OutboxRunResult } from "./outbox";
 
 // Único módulo de jobs autorizado a importar @/server/db/client: os crons processam todas as
 // clínicas de uma vez e por isso não passam pelo tenantScope. Só as rotas /api/cron/* chamam
-// estas funções, depois de `isAuthorizedCron`.
+// estas funções, por meio de `handleCronRequest` (que antes confere o CRON_SECRET).
 
 export function runOutboxJob(): Promise<OutboxRunResult> {
   return processOutbox(db, getMessagingProvider());
