@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatBRL, formatDuration, formatServicePrice } from "./format";
+import { formatBRL, formatDate, formatDuration, formatServicePrice } from "./format";
 
 // Intl em pt-BR separa "R$" do valor com espaço não separável ( ).
 describe("formatBRL", () => {
@@ -25,5 +25,13 @@ describe("formatDuration", () => {
   it("mostra a duração em minutos", () => {
     expect(formatDuration(60)).toBe("60 min");
     expect(formatDuration(90)).toBe("90 min");
+  });
+});
+
+describe("formatDate", () => {
+  it("usa o fuso informado para decidir o dia", () => {
+    const instant = new Date("2026-10-03T01:30:00Z");
+    expect(formatDate(instant, "America/Sao_Paulo")).toBe("02/10/2026");
+    expect(formatDate(instant, "UTC")).toBe("03/10/2026");
   });
 });

@@ -69,10 +69,10 @@ Não introduza outras bibliotecas grandes sem justificar no PR.
 ## 5. Modelo de dados (ponto de partida)
 
 - **Tenancy**: `tenants` (slug, segmento, fuso, config JSON), `locations`
-- **Equipe**: `staff_users`, `staff_roles` (owner, reception, professional), `professionals`, `professional_services`, `working_hours`, `time_blocks` (folga, feriado, manutenção)
+- **Equipe**: `staff_users` (papel em enum `staff_role`: owner, reception, professional), `professionals`, `professional_services`, `working_hours`, `time_blocks` (folga, feriado, manutenção)
 - **Recursos**: `rooms`, `equipment`, `service_resource_requirements`
 - **Catálogo**: `service_categories`, `services` (duração, preço, "a partir de", buffer de higienização, requer avaliação), `service_media`, `products`, `packages`, `package_items`
-- **Pessoas**: `people` (status `lead` | `client`, nome, CPF, telefone, e-mail, nascimento, origem, UTMs), `person_consents` (versão do termo, data/hora, IP, user-agent), `otp_codes` (hash do código, expiração, tentativas), `sessions`
+- **Pessoas**: `people` (status `lead` | `client`, nome, CPF, telefone, e-mail, nascimento, origem, UTMs), `person_consents` (versão do termo, data/hora, IP, user-agent), `otp_codes` (hash do código, expiração, tentativas), `sessions`, `login_attempts` (tentativas de login da equipe, para o limite)
 - **CRM**: `lead_stages`, `lead_events`, `tasks`
 - **Agenda**: `appointments` (status, origem, sinal), `appointment_items` (serviços em sequência), `appointment_resources` (profissional/sala/equipamento + `tstzrange`), `waitlist_entries`, `recurrence_rules`
 - **Comercial**: `package_purchases`, `package_balance_ledger`, `coupons`, `gift_cards`, `wallet_ledger`, `orders`, `payments`, `webhook_events`
@@ -108,6 +108,7 @@ DATABASE_URL=                 # Neon (pooled)
 DATABASE_URL_UNPOOLED=        # Neon (migrations)
 TEST_DATABASE_URL=            # Postgres de teste (Docker)
 SESSION_SECRET=
+SEED_STAFF_PASSWORD=          # só para o seed de dev
 DATA_ENCRYPTION_KEY=
 CRON_SECRET=
 BLOB_READ_WRITE_TOKEN=        # só fora da Vercel; na Vercel usar OIDC
@@ -125,6 +126,7 @@ Mantenha `.env.example` sempre atualizado.
 pnpm dev | pnpm build | pnpm lint | pnpm typecheck
 pnpm test | pnpm test:e2e
 pnpm db:generate | pnpm db:migrate | pnpm db:seed | pnpm db:studio
+pnpm staff:create             # cria usuário da equipe (ex.: o primeiro dono)
 pnpm db:up | pnpm db:down     # Postgres + proxy do Neon no Docker
 ```
 
