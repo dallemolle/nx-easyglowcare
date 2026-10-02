@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { decodeJwt, SignJWT } from "jose";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getTestDb, resetDb } from "../../../test/db";
 import { sessions, staffUsers, tenants, type StaffUser, type Tenant } from "../db/schema";
@@ -102,11 +102,28 @@ describe("createSession / validateSession", () => {
   });
 
   it("devolve null quando o cookie foi assinado com outro segredo", async () => {
-    const other = await new SignJWT({ t: "x".repeat(43) })
+    // Usa um token real (existe no banco) para que este teste só passe porque a
+    // assinatura é verificada — com um token inventado ele passaria de qualquer jeito
+    // (o token não seria encontrado em `sessions`, por um motivo não relacionado).
+    const { cookieValue } = await createSession(db, staff, META);
+    const token = decodeJwt(cookieValue).t as string;
+
+    const other = await new SignJWT({ t: token })
       .setProtectedHeader({ alg: "HS256" })
       .sign(new TextEncoder().encode("outro-segredo-com-mais-de-32-caracteres"));
 
     expect(await validateSession(db, other)).toBeNull();
+  });
+
+  it("propaga erro de configuração (SESSION_SECRET inválido) em vez de devolver null", async () => {
+    const { cookieValue } = await createSession(db, staff, META);
+
+    vi.stubEnv("SESSION_SECRET", "curta");
+    try {
+      await expect(validateSession(db, cookieValue)).rejects.toThrow();
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("sinaliza renovação perto do fim do prazo e renewSession estende a validade", async () => {

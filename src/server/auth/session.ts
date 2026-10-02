@@ -72,9 +72,13 @@ export async function validateSession(
 ): Promise<StaffSession | null> {
   if (!cookieValue) return null;
 
+  // Fora do try: um erro de configuração (ex.: SESSION_SECRET inválido) deve propagar,
+  // não ser confundido com uma falha de verificação do JWT e virar "sessão inválida".
+  const key = secretKey();
+
   let token: unknown;
   try {
-    const { payload } = await jwtVerify(cookieValue, secretKey(), { algorithms: ["HS256"] });
+    const { payload } = await jwtVerify(cookieValue, key, { algorithms: ["HS256"] });
     token = payload.t;
   } catch {
     return null;
