@@ -15,6 +15,13 @@
       "when": 1790815720186,
       "tag": "0001_base_tenancy_catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790912198610,
+      "tag": "0002_staff_auth",
+      "breakpoints": true
     }
   ]
 }

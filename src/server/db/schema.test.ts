@@ -11,17 +11,28 @@ const tables = (Object.values(schema) as unknown[]).filter((value): value is PgT
   is(value, PgTable),
 );
 
+const TENANT_OPTIONAL = ["tenants", "login_attempts"];
+
 describe("guardas do schema", () => {
-  it("toda tabela exceto tenants tem tenant_id", () => {
+  it("toda tabela exceto tenants e login_attempts tem tenant_id obrigatório", () => {
     const checked = tables
       .map((table) => getTableConfig(table))
-      .filter((config) => config.name !== "tenants");
+      .filter((config) => !TENANT_OPTIONAL.includes(config.name));
 
     expect(checked.length).toBeGreaterThanOrEqual(6);
     for (const config of checked) {
       // Com casing "snake_case" o config guarda a chave TS; o nome real no banco é a conversão.
       expect(config.columns.map((c) => toSnakeCase(c.name)), config.name).toContain("tenant_id");
     }
+  });
+
+  it("login_attempts tem tenant_id (opcional)", () => {
+    const config = tables
+      .map((table) => getTableConfig(table))
+      .find((c) => c.name === "login_attempts");
+
+    expect(config).toBeDefined();
+    expect(config?.columns.map((c) => toSnakeCase(c.name))).toContain("tenant_id");
   });
 });
 
@@ -55,5 +66,55 @@ describe("restrições no banco", () => {
 
   it("slug de tenant inválido é rejeitado pelo CHECK", async () => {
     await expect(insertTenant("Easy Glow")).rejects.toThrow(/check constraint/);
+  });
+
+  it("e-mail de staff é único entre tenants", async () => {
+    const tenantA = await insertTenant("clinica-a");
+    const tenantB = await insertTenant("clinica-b");
+
+    await testPool.query(
+      `insert into staff_users (tenant_id, name, email, password_hash, role)
+       values ($1, 'Dono A', 'dono@x.test', 'hash', 'owner')`,
+      [tenantA],
+    );
+
+    await expect(
+      testPool.query(
+        `insert into staff_users (tenant_id, name, email, password_hash, role)
+         values ($1, 'Dono B', 'dono@x.test', 'hash', 'owner')`,
+        [tenantB],
+      ),
+    ).rejects.toThrow(/unique/);
+  });
+
+  it("e-mail de staff com maiúsculas é rejeitado pelo CHECK", async () => {
+    const tenantA = await insertTenant("clinica-a");
+
+    await expect(
+      testPool.query(
+        `insert into staff_users (tenant_id, name, email, password_hash, role)
+         values ($1, 'Dono A', 'Dono@x.test', 'hash', 'owner')`,
+        [tenantA],
+      ),
+    ).rejects.toThrow(/check constraint/);
+  });
+
+  it("sessão não pode apontar para staff de outro tenant", async () => {
+    const tenantA = await insertTenant("clinica-a");
+    const tenantB = await insertTenant("clinica-b");
+
+    const { rows } = await testPool.query<{ id: string }>(
+      `insert into staff_users (tenant_id, name, email, password_hash, role)
+       values ($1, 'Dono B', 'dono-b@x.test', 'hash', 'owner') returning id`,
+      [tenantB],
+    );
+
+    await expect(
+      testPool.query(
+        `insert into sessions (tenant_id, staff_user_id, token_hash, expires_at)
+         values ($1, $2, 'tokenhash', now() + interval '7 days')`,
+        [tenantA, rows[0].id],
+      ),
+    ).rejects.toThrow(/foreign key/);
   });
 });

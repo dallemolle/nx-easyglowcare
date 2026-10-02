@@ -13,7 +13,10 @@ export default defineConfig({
     environment: "node",
     globalSetup: ["./test/global-setup.ts"],
     // client.ts valida DATABASE_URL ao ser importado; nos testes o pool Neon nunca é usado.
-    env: { DATABASE_URL: "postgres://postgres:postgres@db.localtest.me:5432/easyglowcare_test" },
+    env: {
+      DATABASE_URL: "postgres://postgres:postgres@db.localtest.me:5432/easyglowcare_test",
+      SESSION_SECRET: "test-session-secret-0123456789abcdef",
+    },
     // Os testes de banco compartilham o mesmo Postgres de teste.
     fileParallelism: false,
   },

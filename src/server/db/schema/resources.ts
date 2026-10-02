@@ -1,5 +1,6 @@
 import { boolean, foreignKey, index, pgTable, text, unique, uuid } from "drizzle-orm/pg-core";
 
+import { staffUsers } from "./staff";
 import { locations, tenantColumns } from "./tenancy";
 
 export const rooms = pgTable(
@@ -48,8 +49,18 @@ export const professionals = pgTable(
     bio: text(),
     color: text(),
     isActive: boolean().notNull().default(true),
+    staffUserId: uuid(),
   },
-  (t) => [index().on(t.tenantId), unique().on(t.tenantId, t.id)],
+  (t) => [
+    index().on(t.tenantId),
+    unique().on(t.tenantId, t.id),
+    unique().on(t.staffUserId),
+    // Usuários da equipe nunca são apagados (só desativados): sem ação no delete.
+    foreignKey({
+      columns: [t.tenantId, t.staffUserId],
+      foreignColumns: [staffUsers.tenantId, staffUsers.id],
+    }),
+  ],
 );
 
 export type Room = typeof rooms.$inferSelect;
