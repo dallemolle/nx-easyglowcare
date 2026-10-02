@@ -8,6 +8,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useHydrated } from "@/lib/use-hydrated";
 import { passwordSchema } from "@/lib/validation/auth";
 
 import { changePasswordAction } from "./actions";
@@ -32,6 +33,7 @@ type FormValues = z.infer<typeof formSchema>;
 export function ChangePasswordForm({ mustChangePassword }: { mustChangePassword: boolean }) {
   const [serverError, setServerError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const hydrated = useHydrated();
   const {
     register,
     handleSubmit,
@@ -55,7 +57,7 @@ export function ChangePasswordForm({ mustChangePassword }: { mustChangePassword:
         <p className="text-sm text-muted-foreground">Crie uma senha sua para continuar.</p>
       )}
 
-      <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
+      <form method="post" onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="currentPassword">Senha atual</Label>
           <Input
@@ -104,7 +106,7 @@ export function ChangePasswordForm({ mustChangePassword }: { mustChangePassword:
           </p>
         )}
 
-        <Button type="submit" disabled={isPending} className="mt-2">
+        <Button type="submit" disabled={!hydrated || isPending} className="mt-2">
           Salvar nova senha
         </Button>
       </form>

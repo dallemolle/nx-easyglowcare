@@ -7,6 +7,7 @@ import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useHydrated } from "@/lib/use-hydrated";
 import { loginSchema, type LoginInput } from "@/lib/validation/auth";
 
 import { loginAction } from "./actions";
@@ -14,6 +15,7 @@ import { loginAction } from "./actions";
 export function LoginForm() {
   const [serverError, setServerError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const hydrated = useHydrated();
   const {
     register,
     handleSubmit,
@@ -29,7 +31,7 @@ export function LoginForm() {
   });
 
   return (
-    <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
+    <form method="post" onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="email">E-mail</Label>
         <Input
@@ -60,7 +62,7 @@ export function LoginForm() {
         </p>
       )}
 
-      <Button type="submit" disabled={isPending} className="mt-2">
+      <Button type="submit" disabled={!hydrated || isPending} className="mt-2">
         Entrar
       </Button>
     </form>

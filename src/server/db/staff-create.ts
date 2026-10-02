@@ -9,6 +9,7 @@ import pg from "pg";
 
 import { createStaff } from "@/server/services/staff";
 
+import { describeDatabaseTarget } from "./database-target";
 import * as schema from "./schema";
 import { parseStaffCreateArgs } from "./staff-create-args";
 import { tenantScope } from "./tenant-scope";
@@ -28,6 +29,8 @@ async function main() {
   try {
     const [tenant] = await db.select().from(tenants).where(eq(tenants.slug, args.tenant));
     if (!tenant) throw new Error(`Clínica não encontrada: ${args.tenant}`);
+
+    console.log(`Banco: ${describeDatabaseTarget(url)} · Clínica: ${tenant.slug}`);
 
     const scope = tenantScope(db, tenant.id);
     const { user, temporaryPassword } = await createStaff(scope, {

@@ -10,6 +10,20 @@ describe("emailSchema", () => {
   it("rejeita e-mail sem arroba", () => {
     expect(emailSchema.safeParse("sem-arroba").success).toBe(false);
   });
+
+  it("aceita e-mail válido de exatamente 254 caracteres", () => {
+    const email = `${"a".repeat(64)}@${"b".repeat(63)}.${"c".repeat(63)}.${"d".repeat(57)}.com`;
+    expect(email).toHaveLength(254);
+    expect(emailSchema.safeParse(email).success).toBe(true);
+  });
+
+  it("rejeita e-mail com mais de 254 caracteres", () => {
+    const email = `${"a".repeat(64)}@${"b".repeat(63)}.${"c".repeat(63)}.${"d".repeat(58)}.com`;
+    expect(email).toHaveLength(255);
+    const result = emailSchema.safeParse(email);
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error.issues[0].message).toBe("E-mail inválido.");
+  });
 });
 
 describe("passwordSchema", () => {

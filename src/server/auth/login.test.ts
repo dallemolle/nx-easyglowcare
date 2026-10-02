@@ -73,6 +73,16 @@ async function countAttempts(email: string): Promise<number> {
 }
 
 describe("login", () => {
+  it("e-mail gigante: mensagem genérica, sem lançar e sem gravar tentativa", async () => {
+    const hugeEmail = `${"a".repeat(4993)}@x.test`;
+    expect(hugeEmail).toHaveLength(5000);
+
+    const result = await login(db, { email: hugeEmail, password: CORRECT_PASSWORD }, META);
+
+    expect(result).toEqual(WRONG_ERROR);
+    expect(await db.select().from(loginAttempts)).toHaveLength(0);
+  });
+
   it("sucesso: cria sessão válida, zera mustChangePassword, grava last_login_at e registra tentativa", async () => {
     const result = await login(
       db,

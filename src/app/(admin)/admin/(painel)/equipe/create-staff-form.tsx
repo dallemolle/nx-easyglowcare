@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useHydrated } from "@/lib/use-hydrated";
 import { createStaffSchema, type CreateStaffInput } from "@/lib/validation/staff";
 import { ROLE_LABELS } from "@/server/auth/permissions";
 
@@ -26,6 +27,7 @@ const ROLES = Object.keys(ROLE_LABELS) as CreateStaffInput["role"][];
 export function CreateStaffForm() {
   const [temporaryPassword, setTemporaryPassword] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const hydrated = useHydrated();
   const {
     register,
     control,
@@ -52,7 +54,7 @@ export function CreateStaffForm() {
   return (
     <section className="flex flex-col gap-4 rounded-xl border p-4">
       <h2 className="text-base font-semibold">Cadastrar pessoa</h2>
-      <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
+      <form method="post" onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="name">Nome</Label>
           <Input id="name" autoComplete="off" aria-invalid={Boolean(errors.name)} {...register("name")} />
@@ -93,7 +95,7 @@ export function CreateStaffForm() {
           />
         </div>
 
-        <Button type="submit" disabled={isPending}>
+        <Button type="submit" disabled={!hydrated || isPending}>
           Cadastrar
         </Button>
       </form>

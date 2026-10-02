@@ -10,9 +10,9 @@ const GENERIC_ERROR = "Não foi possível trocar a senha. Tente novamente.";
 
 export async function changePasswordAction(input: unknown): Promise<{ error: string } | undefined> {
   const staff = await requireStaff({ allowPasswordChange: true });
-  await refreshSessionCookie(staff);
 
   try {
+    await refreshSessionCookie(staff);
     await changeOwnPassword(staff.scope, { id: staff.user.id }, staff.sessionId, input);
   } catch (error) {
     if (error instanceof StaffError) {

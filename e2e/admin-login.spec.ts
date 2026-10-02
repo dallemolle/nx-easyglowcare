@@ -21,6 +21,12 @@ test("cookie de sessão inválido também redireciona para o login", async ({ pa
   await expect(page).toHaveURL(/\/admin\/login$/);
 });
 
+// Antes de hidratar, um envio nativo sem method mandaria e-mail e senha na URL (GET).
+test("formulário de login envia por POST", async ({ page }) => {
+  await page.goto("/admin/login");
+  await expect(page.locator("form")).toHaveAttribute("method", "post");
+});
+
 test("senha errada mostra mensagem genérica", async ({ page }) => {
   await page.goto("/admin/login");
   await page.getByLabel("E-mail").fill(OWNER_EMAIL);
@@ -127,6 +133,10 @@ test.describe.serial("gestão da equipe", () => {
     await login(page, newEmail, temporaryPassword!);
     await expect(page).toHaveURL(/\/admin\/trocar-senha$/);
     await expect(page.getByText("Crie uma senha sua para continuar.")).toBeVisible();
+    const changeForm = page
+      .locator("form")
+      .filter({ has: page.getByRole("button", { name: "Salvar nova senha" }) });
+    await expect(changeForm).toHaveAttribute("method", "post");
 
     // Portão da troca obrigatória: nem o painel nem a equipe abrem enquanto a senha for provisória.
     await page.goto("/admin");

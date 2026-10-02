@@ -3,6 +3,7 @@ import { z } from "zod";
 export const emailSchema = z
   .string()
   .trim()
+  .max(254, "E-mail inválido.")
   .toLowerCase()
   .pipe(z.email("E-mail inválido."));
 
