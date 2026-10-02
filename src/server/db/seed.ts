@@ -19,10 +19,14 @@ const { equipment, locations, professionals, rooms, serviceCategories, services,
 
 const TENANT = { slug: "easyglowcare", name: "EasyGlowCare" } as const;
 
-/** Dono(a) e recepção da clínica de exemplo. */
+/**
+ * Dono(a) e recepção da clínica de exemplo. Os nomes não podem coincidir com os rótulos de
+ * papel (`ROLE_LABELS` em `src/server/auth/permissions.ts`): o cabeçalho do admin mostra nome
+ * e papel lado a lado, e os testes e2e localizam o rótulo do papel pelo texto.
+ */
 const STAFF_SEED = [
-  { name: "Dono(a)", email: "dono@easyglowcare.test", role: "owner" as const },
-  { name: "Recepção", email: "recepcao@easyglowcare.test", role: "reception" as const },
+  { name: "Marina Alves", email: "dono@easyglowcare.test", role: "owner" as const },
+  { name: "Paulo Reis", email: "recepcao@easyglowcare.test", role: "reception" as const },
 ];
 
 /** Profissionais da clínica de exemplo: cada um ganha um usuário da equipe vinculado. */
