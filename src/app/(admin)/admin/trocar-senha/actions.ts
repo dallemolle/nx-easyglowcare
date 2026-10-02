@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 
-import { refreshSessionCookie, requireStaff } from "@/server/auth/current";
+import { recordStaffAudit, refreshSessionCookie, requireStaff } from "@/server/auth/current";
 import { describeUnexpectedError } from "@/server/errors";
 import { changeOwnPassword, StaffError } from "@/server/services/staff";
 
@@ -14,6 +14,11 @@ export async function changePasswordAction(input: unknown): Promise<{ error: str
   try {
     await refreshSessionCookie(staff);
     await changeOwnPassword(staff.scope, { id: staff.user.id }, staff.sessionId, input);
+    await recordStaffAudit(staff, {
+      action: "auth.password_changed",
+      entity: "staff_user",
+      entityId: staff.user.id,
+    });
   } catch (error) {
     if (error instanceof StaffError) {
       return { error: error.message };

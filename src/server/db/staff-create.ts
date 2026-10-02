@@ -7,6 +7,7 @@ import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 
+import { safeRecordAudit } from "@/server/services/audit";
 import { createStaff } from "@/server/services/staff";
 
 import { describeDatabaseTarget } from "./database-target";
@@ -37,6 +38,15 @@ async function main() {
       name: args.name,
       email: args.email,
       role: args.role,
+    });
+
+    // Ator "system": o comando roda no terminal, sem usuário logado.
+    await safeRecordAudit(scope, {
+      actor: { type: "system" },
+      action: "staff.created",
+      entity: "staff_user",
+      entityId: user.id,
+      metadata: { role: user.role },
     });
 
     console.log(`E-mail: ${user.email}`);
