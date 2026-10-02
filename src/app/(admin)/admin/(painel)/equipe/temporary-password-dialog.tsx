@@ -38,7 +38,12 @@ export function TemporaryPasswordDialog({
 
   return (
     <Dialog open={password !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent showCloseButton={false}>
+      {/* Só o botão "Fechar" fecha: um toque fora ou Escape perderiam a senha, mostrada uma vez. */}
+      <DialogContent
+        showCloseButton={false}
+        onInteractOutside={(event) => event.preventDefault()}
+        onEscapeKeyDown={(event) => event.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>Anote agora: ela não será mostrada de novo.</DialogDescription>

@@ -33,8 +33,9 @@ async function run(
   mutate: () => Promise<{ temporaryPassword?: string } | void>,
 ): Promise<StaffActionResult> {
   try {
-    const result = await mutate();
+    // Renova ANTES da mutação: uma falha tardia aqui perderia a senha provisória (mostrada uma vez).
     await refreshSessionCookie(staff);
+    const result = await mutate();
     revalidatePath("/admin/equipe");
     return result?.temporaryPassword
       ? { ok: true, temporaryPassword: result.temporaryPassword }

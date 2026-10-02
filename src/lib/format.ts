@@ -14,3 +14,20 @@ export function formatServicePrice(cents: number, isFrom: boolean): string {
 export function formatDuration(minutes: number): string {
   return `${minutes} min`;
 }
+
+const dateFormatters = new Map<string, Intl.DateTimeFormat>();
+
+/** Data `dd/MM/yyyy` no fuso informado (o do tenant), igual no servidor e no navegador. */
+export function formatDate(date: Date, timeZone: string): string {
+  let formatter = dateFormatters.get(timeZone);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat("pt-BR", {
+      timeZone,
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+    dateFormatters.set(timeZone, formatter);
+  }
+  return formatter.format(date);
+}

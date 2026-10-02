@@ -99,7 +99,7 @@ async function createStaffPerson(page: Page, name: string, email: string, roleLa
   await page.getByRole("button", { name: "Cadastrar" }).click();
 }
 
-// Os testes 6, 8 e 9 dependem da pessoa criada no primeiro: rodam em série, com e-mail único
+// Os testes 6 e 9 dependem da pessoa criada no primeiro: rodam em série, com e-mail único
 // por execução (o banco de dev persiste entre execuções).
 test.describe.serial("gestão da equipe", () => {
   const newEmail = `e2e-${Date.now()}@easyglowcare.test`;
@@ -114,6 +114,9 @@ test.describe.serial("gestão da equipe", () => {
 
     const dialog = page.getByRole("dialog");
     await expect(dialog.getByText("Anote agora: ela não será mostrada de novo.")).toBeVisible();
+    // Escape não pode fechar: a senha só aparece uma vez.
+    await page.keyboard.press("Escape");
+    await expect(dialog.getByTestId("temporary-password")).toBeVisible();
     const temporaryPassword = (await dialog.getByTestId("temporary-password").textContent())?.trim();
     expect(temporaryPassword).toBeTruthy();
     await dialog.getByRole("button", { name: "Fechar" }).first().click();
@@ -145,17 +148,6 @@ test.describe.serial("gestão da equipe", () => {
     await expect(page.getByRole("banner").getByText("Recepção")).toBeVisible();
   });
 
-  test("e-mail repetido mostra mensagem", async ({ page }) => {
-    await login(page, OWNER_EMAIL, E2E_STAFF_PASSWORD);
-    await expect(page).toHaveURL(/\/admin$/);
-    await page.goto("/admin/equipe");
-
-    await createStaffPerson(page, "Outra Pessoa", RECEPTION_EMAIL, "Recepção");
-
-    await expect(page.getByText("Este e-mail já está em uso.")).toBeVisible();
-    await expect(page.getByRole("dialog")).toBeHidden();
-  });
-
   test("dono desativa pessoa e ela perde o acesso", async ({ page }) => {
     await login(page, OWNER_EMAIL, E2E_STAFF_PASSWORD);
     await expect(page).toHaveURL(/\/admin$/);
@@ -172,6 +164,17 @@ test.describe.serial("gestão da equipe", () => {
     await expect(page.getByText("E-mail ou senha incorretos.")).toBeVisible();
     await expect(page).toHaveURL(/\/admin\/login$/);
   });
+});
+
+test("e-mail repetido mostra mensagem", async ({ page }) => {
+  await login(page, OWNER_EMAIL, E2E_STAFF_PASSWORD);
+  await expect(page).toHaveURL(/\/admin$/);
+  await page.goto("/admin/equipe");
+
+  await createStaffPerson(page, "Outra Pessoa", RECEPTION_EMAIL, "Recepção");
+
+  await expect(page.getByText("Este e-mail já está em uso.")).toBeVisible();
+  await expect(page.getByRole("dialog")).toBeHidden();
 });
 
 test("recepção recebe 404 em /admin/equipe", async ({ page }) => {

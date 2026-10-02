@@ -1,6 +1,5 @@
 "use client";
 
-import { format } from "date-fns";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -17,6 +16,8 @@ import { staffRoleSchema } from "@/lib/validation/staff";
 import { ROLE_LABELS } from "@/server/auth/permissions";
 import type { StaffListItem } from "@/server/services/staff";
 
+export type StaffMemberView = Omit<StaffListItem, "lastLoginAt"> & { lastLoginLabel: string | null };
+
 import {
   changeRoleAction,
   resetPasswordAction,
@@ -25,9 +26,9 @@ import {
 } from "./actions";
 import { TemporaryPasswordDialog } from "./temporary-password-dialog";
 
-const ROLES = Object.keys(ROLE_LABELS) as StaffListItem["role"][];
+const ROLES = Object.keys(ROLE_LABELS) as StaffMemberView["role"][];
 
-function statusLabel(member: StaffListItem): string {
+function statusLabel(member: StaffMemberView): string {
   if (!member.isActive) return "Desativado";
   if (member.mustChangePassword) return "Senha provisória";
   return "Ativo";
@@ -37,7 +38,7 @@ export function StaffList({
   members,
   currentUserId,
 }: {
-  members: StaffListItem[];
+  members: StaffMemberView[];
   currentUserId: string;
 }) {
   const [temporaryPassword, setTemporaryPassword] = useState<string | null>(null);
@@ -78,8 +79,8 @@ export function StaffList({
               <div className="flex flex-col text-sm text-muted-foreground">
                 <span>{statusLabel(member)}</span>
                 <span>
-                  {member.lastLoginAt
-                    ? `Último acesso: ${format(member.lastLoginAt, "dd/MM/yyyy")}`
+                  {member.lastLoginLabel
+                    ? `Último acesso: ${member.lastLoginLabel}`
                     : "Nunca acessou"}
                 </span>
               </div>
