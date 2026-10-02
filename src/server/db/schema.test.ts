@@ -3,6 +3,8 @@ import { toSnakeCase } from "drizzle-orm/casing";
 import { getTableConfig, PgTable } from "drizzle-orm/pg-core";
 import { beforeEach, describe, expect, it } from "vitest";
 
+import { MESSAGE_CHANNELS } from "@/lib/validation/outbox";
+
 import { resetDb, testPool } from "../../../test/db";
 
 import * as schema from "./schema";
@@ -19,11 +21,20 @@ describe("guardas do schema", () => {
       .map((table) => getTableConfig(table))
       .filter((config) => !TENANT_OPTIONAL.includes(config.name));
 
-    expect(checked.length).toBeGreaterThanOrEqual(6);
+    expect(checked.length).toBeGreaterThanOrEqual(10);
     for (const config of checked) {
       // Com casing "snake_case" o config guarda a chave TS; o nome real no banco é a conversão.
       expect(config.columns.map((c) => toSnakeCase(c.name)), config.name).toContain("tenant_id");
     }
+  });
+
+  it("os canais do Zod e do enum do banco são os mesmos", () => {
+    expect(schema.messageChannel.enumValues).toEqual([...MESSAGE_CHANNELS]);
+  });
+
+  it("audit_log não tem updated_at", () => {
+    const config = getTableConfig(schema.auditLog);
+    expect(config.columns.map((c) => toSnakeCase(c.name))).not.toContain("updated_at");
   });
 
   it("login_attempts tem tenant_id (opcional)", () => {
@@ -46,6 +57,33 @@ describe("restrições no banco", () => {
     );
     return rows[0].id;
   }
+
+  const OUTBOX_INSERT = `insert into message_outbox (tenant_id, channel, template, recipient, send_at, dedupe_key)
+    values ($1, 'whatsapp', 'teste', '11999990000', now(), $2)`;
+
+  it("dedupe_key é única por clínica", async () => {
+    const tenantA = await insertTenant("clinica-a");
+    await testPool.query(OUTBOX_INSERT, [tenantA, "chave-1"]);
+    await expect(testPool.query(OUTBOX_INSERT, [tenantA, "chave-1"])).rejects.toThrow(/unique/);
+  });
+
+  it("a mesma dedupe_key em clínicas diferentes é aceita, e nula pode repetir", async () => {
+    const tenantA = await insertTenant("clinica-a");
+    const tenantB = await insertTenant("clinica-b");
+    await testPool.query(OUTBOX_INSERT, [tenantA, "chave-1"]);
+    await testPool.query(OUTBOX_INSERT, [tenantB, "chave-1"]);
+    await testPool.query(OUTBOX_INSERT, [tenantA, null]);
+    await testPool.query(OUTBOX_INSERT, [tenantA, null]);
+    const { rows } = await testPool.query("select id from message_outbox");
+    expect(rows).toHaveLength(4);
+  });
+
+  it("mensagem nasce pending, com 0 tentativas e payload vazio", async () => {
+    const tenantA = await insertTenant("clinica-a");
+    await testPool.query(OUTBOX_INSERT, [tenantA, null]);
+    const { rows } = await testPool.query("select status, attempts, payload from message_outbox");
+    expect(rows[0]).toEqual({ status: "pending", attempts: 0, payload: {} });
+  });
 
   it("FK composta impede service de A com categoria de B", async () => {
     const tenantA = await insertTenant("clinica-a");

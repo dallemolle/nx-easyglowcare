@@ -11,7 +11,7 @@ const envSchema = z.object({
   SESSION_SECRET: z.string().min(32),
   SEED_STAFF_PASSWORD: optional,
   DATA_ENCRYPTION_KEY: optional,
-  CRON_SECRET: optional,
+  CRON_SECRET: z.preprocess((v) => (v === "" ? undefined : v), z.string().min(16).optional()),
   BLOB_READ_WRITE_TOKEN: optional,
   VAPID_PUBLIC_KEY: optional,
   VAPID_PRIVATE_KEY: optional,
