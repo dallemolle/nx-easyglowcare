@@ -7,7 +7,7 @@ import { staffUsers } from "@/server/db/schema";
 import type { AnyPgDatabase } from "@/server/db/tenant-scope";
 
 import { DUMMY_PASSWORD_HASH, verifyPassword } from "./password";
-import { isLoginBlocked, recordLoginAttempt } from "./rate-limit";
+import { completeLoginAttempt, reserveLoginAttempt } from "./rate-limit";
 import { createSession, type SessionMeta } from "./session";
 
 const INVALID_CREDENTIALS_ERROR = "E-mail ou senha incorretos.";
@@ -22,8 +22,11 @@ export type LoginResult =
 // Autorizado explicitamente para login.ts e rate-limit.ts (ver constraints da tarefa).
 
 /**
- * Login da equipe. Ordem importa por segurança: checa o limite de tentativas antes de
- * olhar a senha; para e-mail inexistente, verifica a senha contra um hash falso fixo
+ * Login da equipe. Ordem importa por segurança: reserva a tentativa (grava a falha e
+ * conta o limite) ANTES de olhar a senha — isso fecha a corrida de concorrência em que
+ * N requisições simultâneas veriam a contagem zerada e todas poderiam tentar a senha
+ * (ver `reserveLoginAttempt`). Quando bloqueado, a senha nunca é verificada e nenhuma
+ * sessão é criada. Para e-mail inexistente, verifica a senha contra um hash falso fixo
  * para igualar o tempo de resposta; e-mail inexistente, senha errada e usuário
  * desativado devolvem a mesma mensagem.
  */
@@ -39,7 +42,8 @@ export async function login(
   }
   const { email, password } = parsed.data;
 
-  if (await isLoginBlocked(db, email, meta.ip, now)) {
+  const reservation = await reserveLoginAttempt(db, { email, ip: meta.ip }, now);
+  if (reservation.blocked) {
     return { ok: false, error: BLOCKED_ERROR };
   }
 
@@ -48,7 +52,10 @@ export async function login(
   const passwordOk = await verifyPassword(user ? user.passwordHash : DUMMY_PASSWORD_HASH, password);
   const succeeded = Boolean(user) && user.isActive && passwordOk;
 
-  await recordLoginAttempt(db, { tenantId: user?.tenantId ?? null, email, ip: meta.ip, succeeded }, now);
+  await completeLoginAttempt(db, reservation.attemptId, {
+    tenantId: user?.tenantId ?? null,
+    succeeded,
+  });
 
   if (!succeeded || !user) {
     return { ok: false, error: INVALID_CREDENTIALS_ERROR };
