@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 // Services recebem um TenantScope, nunca o `db`. Amplie esta lista explicitamente quando
 // um novo módulo precisar do client (ex.: sessão no 0B).
-const ALLOWED = ["src/server/services/tenants.ts"];
+const ALLOWED = ["src/server/auth/current.ts", "src/server/services/tenants.ts"];
 
 const CLIENT_IMPORT = /from\s+["'](@\/server\/db\/client|\.{1,2}\/(?:[\w-]+\/)*client)["']/;
 
