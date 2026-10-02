@@ -25,10 +25,13 @@ const CHANGE_PASSWORD_PATH = "/admin/trocar-senha";
 // Único módulo (além de services/tenants.ts) autorizado a importar @/server/db/client:
 // páginas, layouts, actions e componentes passam por aqui, nunca pelo `db` direto.
 
-/** Sessão da equipe autenticada, sem o hash da senha nem outros dados internos de sessão. */
+/** `StaffUser` sem `passwordHash`: é isso que circula para fora deste módulo. */
+export type CurrentStaffUser = Omit<StaffUser, "passwordHash">;
+
+/** Sessão da equipe autenticada. `user` nunca carrega o hash da senha (ver `CurrentStaffUser`). */
 export type CurrentStaff = {
   sessionId: string;
-  user: StaffUser;
+  user: CurrentStaffUser;
   tenant: Tenant;
   scope: TenantScope;
 };
@@ -41,9 +44,11 @@ const COOKIE_OPTIONS = {
 };
 
 function toCurrentStaff(session: StaffSession): CurrentStaff {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- descartado de propósito
+  const { passwordHash, ...user } = session.user;
   return {
     sessionId: session.sessionId,
-    user: session.user,
+    user,
     tenant: session.tenant,
     scope: tenantScope(db, session.tenant.id),
   };

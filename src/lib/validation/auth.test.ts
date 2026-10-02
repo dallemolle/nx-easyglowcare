@@ -37,6 +37,14 @@ describe("loginSchema", () => {
       true,
     );
   });
+
+  it("rejeita senha vazia com mensagem em pt-BR", () => {
+    const result = loginSchema.safeParse({ email: "dono@easyglowcare.test", password: "" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].message).toBe("Informe a senha.");
+    }
+  });
 });
 
 describe("changePasswordSchema", () => {
@@ -54,5 +62,13 @@ describe("changePasswordSchema", () => {
       newPassword: "senhanova1",
     });
     expect(result.success).toBe(true);
+  });
+
+  it("rejeita senha atual vazia com mensagem em pt-BR", () => {
+    const result = changePasswordSchema.safeParse({ currentPassword: "", newPassword: "senhanova1" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].message).toBe("Informe a senha atual.");
+    }
   });
 });
