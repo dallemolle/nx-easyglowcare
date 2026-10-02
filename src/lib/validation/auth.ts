@@ -1,0 +1,27 @@
+import { z } from "zod";
+
+export const emailSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .pipe(z.email("E-mail inválido."));
+
+export const passwordSchema = z
+  .string()
+  .min(10, "A senha deve ter ao menos 10 caracteres.")
+  .max(128, "A senha deve ter no máximo 128 caracteres.");
+
+export const loginSchema = z.object({
+  email: emailSchema,
+  password: z.string().min(1).max(128),
+});
+
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1).max(128),
+    newPassword: passwordSchema,
+  })
+  .refine((data) => data.newPassword !== data.currentPassword, {
+    message: "A nova senha deve ser diferente da atual.",
+    path: ["newPassword"],
+  });
