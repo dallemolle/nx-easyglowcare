@@ -106,6 +106,7 @@ O intervalo `during` já inclui o buffer de higienização. Isso impede dupla re
 ```
 DATABASE_URL=                 # Neon (pooled)
 DATABASE_URL_UNPOOLED=        # Neon (migrations)
+TEST_DATABASE_URL=            # Postgres de teste (Docker)
 SESSION_SECRET=
 DATA_ENCRYPTION_KEY=
 CRON_SECRET=
@@ -124,6 +125,7 @@ Mantenha `.env.example` sempre atualizado.
 pnpm dev | pnpm build | pnpm lint | pnpm typecheck
 pnpm test | pnpm test:e2e
 pnpm db:generate | pnpm db:migrate | pnpm db:seed | pnpm db:studio
+pnpm db:up | pnpm db:down     # Postgres + proxy do Neon no Docker
 ```
 
 ## 10. Como trabalhar neste repositório
@@ -131,7 +133,7 @@ pnpm db:generate | pnpm db:migrate | pnpm db:seed | pnpm db:studio
 - Antes de uma funcionalidade nova: entrar em modo de planejamento, listar arquivos, tabelas e migrations, e esperar aprovação.
 - Uma funcionalidade por branch/PR. Commits pequenos, mensagens em português no imperativo.
 - Toda mudança de schema gera migration versionada; nunca editar migration já aplicada.
-- Seed com um tenant de exemplo ("Clínica Bella"), 3 profissionais, 2 salas, 1 equipamento e 15 serviços.
+- Seed com um tenant de exemplo ("EasyGlowCare"), 3 profissionais, 2 salas, 1 equipamento e 15 serviços.
 - **Pronto** = typecheck e lint limpos, testes passando, fluxo testado no navegador em largura de celular (375px), `.env.example` e `ROADMAP.md` atualizados (marcar o item como feito).
 - Interface em português do Brasil; moeda BRL; datas `dd/MM/yyyy`; telefone com máscara `(99) 99999-9999`.
 - Mobile first: a maioria dos clientes chega pelo Instagram no celular.
