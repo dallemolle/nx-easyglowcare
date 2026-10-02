@@ -40,7 +40,6 @@ beforeEach(async () => {
   [tenantB] = await db.insert(tenants).values({ slug: "clinica-b", name: "Clínica B" }).returning();
   scopeA = tenantScope(db, tenantA.id);
   scopeB = tenantScope(db, tenantB.id);
-  void scopeB;
 
   [ownerA] = await db
     .insert(staffUsers)
@@ -108,9 +107,10 @@ describe("createStaff", () => {
   it("rejeita e-mail duplicado no mesmo tenant", async () => {
     await createStaff(scopeA, { name: "Dup Um", email: "dup@clinica-a.test", role: "reception" });
 
-    await expect(
-      createStaff(scopeA, { name: "Dup Dois", email: "dup@clinica-a.test", role: "reception" }),
-    ).rejects.toThrow("Este e-mail já está em uso.");
+    const promise = createStaff(scopeA, { name: "Dup Dois", email: "dup@clinica-a.test", role: "reception" });
+
+    await expect(promise).rejects.toThrow("Este e-mail já está em uso.");
+    await expect(promise).rejects.toBeInstanceOf(StaffError);
   });
 
   it("rejeita e-mail duplicado em outro tenant", async () => {
@@ -147,26 +147,49 @@ describe("não altera a si mesmo", () => {
   });
 
   it("setStaffActive recusa quando o alvo é o próprio actor", async () => {
-    await expect(setStaffActive(scopeA, ownerA, ownerA.id, false)).rejects.toThrow(
-      "Você não pode alterar a sua própria conta por aqui.",
-    );
+    const promise = setStaffActive(scopeA, ownerA, ownerA.id, false);
+
+    await expect(promise).rejects.toThrow("Você não pode alterar a sua própria conta por aqui.");
+    await expect(promise).rejects.toBeInstanceOf(StaffError);
   });
 
   it("resetStaffPassword recusa quando o alvo é o próprio actor", async () => {
-    await expect(resetStaffPassword(scopeA, ownerA, ownerA.id)).rejects.toThrow(
-      "Você não pode alterar a sua própria conta por aqui.",
-    );
+    const promise = resetStaffPassword(scopeA, ownerA, ownerA.id);
+
+    await expect(promise).rejects.toThrow("Você não pode alterar a sua própria conta por aqui.");
+    await expect(promise).rejects.toBeInstanceOf(StaffError);
   });
 });
 
 describe("id de outro tenant", () => {
   it("changeStaffRole não encontra o usuário de outro tenant e não o altera", async () => {
-    await expect(changeStaffRole(scopeA, ownerA, ownerB.id, "reception")).rejects.toThrow(
-      "Usuário não encontrado.",
-    );
+    const promise = changeStaffRole(scopeA, ownerA, ownerB.id, "reception");
 
-    const [stillOwner] = await db.select().from(staffUsers).where(eq(staffUsers.id, ownerB.id));
+    await expect(promise).rejects.toThrow("Usuário não encontrado.");
+    await expect(promise).rejects.toBeInstanceOf(StaffError);
+
+    const [stillOwner] = await scopeB.select(staffUsers, eq(staffUsers.id, ownerB.id));
     expect(stillOwner.role).toBe("owner");
+  });
+
+  it("resetStaffPassword não encontra o usuário de outro tenant e não mexe na senha nem nas sessões dele", async () => {
+    const { cookieValue } = await createSession(db, ownerB, META);
+
+    await expect(resetStaffPassword(scopeA, ownerA, ownerB.id)).rejects.toThrow("Usuário não encontrado.");
+
+    const [stillOwnerB] = await scopeB.select(staffUsers, eq(staffUsers.id, ownerB.id));
+    expect(stillOwnerB.passwordHash).toBe(ownerB.passwordHash);
+    expect(await validateSession(db, cookieValue)).not.toBeNull();
+  });
+
+  it("setStaffActive não encontra o usuário de outro tenant e não mexe na situação nem nas sessões dele", async () => {
+    const { cookieValue } = await createSession(db, ownerB, META);
+
+    await expect(setStaffActive(scopeA, ownerA, ownerB.id, false)).rejects.toThrow("Usuário não encontrado.");
+
+    const [stillOwnerB] = await scopeB.select(staffUsers, eq(staffUsers.id, ownerB.id));
+    expect(stillOwnerB.isActive).toBe(true);
+    expect(await validateSession(db, cookieValue)).not.toBeNull();
   });
 });
 
@@ -333,12 +356,13 @@ describe("resetStaffPassword", () => {
 
 describe("changeOwnPassword", () => {
   it("recusa quando a senha atual está errada", async () => {
-    await expect(
-      changeOwnPassword(scopeA, ownerA, "sessao-qualquer", {
-        currentPassword: "senha-errada-123",
-        newPassword: "senha-nova-456",
-      }),
-    ).rejects.toThrow("Senha atual incorreta.");
+    const promise = changeOwnPassword(scopeA, ownerA, "sessao-qualquer", {
+      currentPassword: "senha-errada-123",
+      newPassword: "senha-nova-456",
+    });
+
+    await expect(promise).rejects.toThrow("Senha atual incorreta.");
+    await expect(promise).rejects.toBeInstanceOf(StaffError);
   });
 
   it("rejeita entrada inválida (nova senha igual à atual)", async () => {
@@ -351,6 +375,10 @@ describe("changeOwnPassword", () => {
   });
 
   it("troca o hash, limpa mustChangePassword, mantém a sessão atual e revoga as outras", async () => {
+    // Começa com mustChangePassword = true (não é o valor padrão da fixture) para que a
+    // asserção abaixo não passe sozinha pelo default da coluna.
+    await db.update(staffUsers).set({ mustChangePassword: true }).where(eq(staffUsers.id, ownerA.id));
+
     const otherSession = await createSession(db, ownerA, META);
     const currentSession = await createSession(db, ownerA, META);
     const current = await validateSession(db, currentSession.cookieValue);
