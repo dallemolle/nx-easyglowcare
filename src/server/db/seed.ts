@@ -8,13 +8,48 @@ import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 
+import { passwordSchema } from "@/lib/validation/auth";
+import { generateTemporaryPassword, hashPassword } from "@/server/auth/password";
+
 import * as schema from "./schema";
 import { assertLocalDatabase } from "./seed-guard";
 import { tenantScope } from "./tenant-scope";
 
-const { equipment, locations, professionals, rooms, serviceCategories, services, tenants } = schema;
+const { equipment, locations, professionals, rooms, serviceCategories, services, staffUsers, tenants } = schema;
 
 const TENANT = { slug: "easyglowcare", name: "EasyGlowCare" } as const;
+
+/**
+ * Dono(a) e recepção da clínica de exemplo. Os nomes não podem coincidir com os rótulos de
+ * papel (`ROLE_LABELS` em `src/server/auth/permissions.ts`): o cabeçalho do admin mostra nome
+ * e papel lado a lado, e os testes e2e localizam o rótulo do papel pelo texto.
+ */
+const STAFF_SEED = [
+  { name: "Marina Alves", email: "dono@easyglowcare.test", role: "owner" as const },
+  { name: "Paulo Reis", email: "recepcao@easyglowcare.test", role: "reception" as const },
+];
+
+/** Profissionais da clínica de exemplo: cada um ganha um usuário da equipe vinculado. */
+const PROFESSIONAL_SEED = [
+  { name: "Ana Souza", email: "ana@easyglowcare.test", bio: "Esteticista facial e corporal.", color: "#E11D48" },
+  { name: "Beatriz Lima", email: "beatriz@easyglowcare.test", bio: "Especialista em depilação a laser.", color: "#7C3AED" },
+  { name: "Dra. Carla Mendes", email: "carla@easyglowcare.test", bio: "Biomédica esteta (injetáveis).", color: "#0891B2" },
+];
+
+/**
+ * Senha da equipe de exemplo: usa `SEED_STAFF_PASSWORD` quando definida (precisa passar
+ * nas mesmas regras da senha de login), senão gera uma e avisa que deve ser impressa.
+ */
+function resolveSeedPassword(): { value: string; generated: boolean } {
+  const fromEnv = process.env.SEED_STAFF_PASSWORD;
+  if (!fromEnv) return { value: generateTemporaryPassword(), generated: true };
+
+  const parsed = passwordSchema.safeParse(fromEnv);
+  if (!parsed.success) {
+    throw new Error(`SEED_STAFF_PASSWORD inválida: ${parsed.error.issues[0].message}`);
+  }
+  return { value: fromEnv, generated: false };
+}
 
 type ServiceSeed = {
   name: string;
@@ -80,6 +115,9 @@ async function main() {
   if (!url) throw new Error("Defina DATABASE_URL_UNPOOLED (veja .env.example).");
   assertLocalDatabase(url, process.argv.includes("--force"));
 
+  const seedPassword = resolveSeedPassword();
+  const passwordHash = await hashPassword(seedPassword.value);
+
   const pool = new pg.Pool({ connectionString: url, max: 1 });
   const db = drizzle({ client: pool, schema, casing: "snake_case" });
 
@@ -102,11 +140,39 @@ async function main() {
         { locationId: location.id, name: "Sala 2" },
       ]);
       await scope.insert(equipment, { locationId: location.id, name: "Laser de diodo" });
-      await scope.insert(professionals, [
-        { displayName: "Ana Souza", bio: "Esteticista facial e corporal.", color: "#E11D48" },
-        { displayName: "Beatriz Lima", bio: "Especialista em depilação a laser.", color: "#7C3AED" },
-        { displayName: "Dra. Carla Mendes", bio: "Biomédica esteta (injetáveis).", color: "#0891B2" },
-      ]);
+
+      await scope.insert(
+        staffUsers,
+        STAFF_SEED.map((s) => ({
+          name: s.name,
+          email: s.email,
+          role: s.role,
+          passwordHash,
+          mustChangePassword: false,
+        })),
+      );
+
+      const professionalUsers = await scope.insert(
+        staffUsers,
+        PROFESSIONAL_SEED.map((p) => ({
+          name: p.name,
+          email: p.email,
+          role: "professional" as const,
+          passwordHash,
+          mustChangePassword: false,
+        })),
+      );
+      const staffIdByEmail = new Map(professionalUsers.map((u) => [u.email, u.id]));
+
+      await scope.insert(
+        professionals,
+        PROFESSIONAL_SEED.map((p) => ({
+          displayName: p.name,
+          bio: p.bio,
+          color: p.color,
+          staffUserId: staffIdByEmail.get(p.email)!,
+        })),
+      );
 
       for (const [position, category] of CATALOG.entries()) {
         const [row] = await scope.insert(serviceCategories, {
@@ -121,9 +187,14 @@ async function main() {
       }
     });
 
+    if (seedPassword.generated) {
+      console.log(`Senha gerada para a equipe de exemplo: ${seedPassword.value}`);
+    }
+
     const serviceCount = CATALOG.reduce((total, c) => total + c.services.length, 0);
+    const userCount = STAFF_SEED.length + PROFESSIONAL_SEED.length;
     console.log(
-      `Seed ok: /${TENANT.slug} (${CATALOG.length} categorias, ${serviceCount} serviços)`,
+      `Seed ok: /${TENANT.slug} (${CATALOG.length} categorias, ${serviceCount} serviços, ${userCount} usuários)`,
     );
   } finally {
     await pool.end();

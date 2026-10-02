@@ -8,7 +8,8 @@ const envSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.url().default("http://localhost:3000"),
   // Obrigatórias a partir dos subprojetos que as usam (0B/0C/0D).
   DATABASE_URL_UNPOOLED: optional,
-  SESSION_SECRET: optional,
+  SESSION_SECRET: z.string().min(32),
+  SEED_STAFF_PASSWORD: optional,
   DATA_ENCRYPTION_KEY: optional,
   CRON_SECRET: optional,
   BLOB_READ_WRITE_TOKEN: optional,
