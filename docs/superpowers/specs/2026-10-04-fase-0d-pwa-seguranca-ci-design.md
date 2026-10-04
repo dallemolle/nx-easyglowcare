@@ -1,7 +1,7 @@
 # Fase 0D: app instalável, cabeçalhos de segurança, CI e migrations automáticas (design)
 
 - **Data:** 04/10/2026
-- **Status:** aguardando revisão
+- **Status:** aprovada
 - **Referências:** `CLAUDE.md` (seções 3, 4 e 7), `ROADMAP.md` (Fase 0), specs do 0A, 0B e 0C; guias do Next 16 em `node_modules/next/dist/docs/01-app/02-guides/` (`progressive-web-apps.md` e `content-security-policy.md`)
 
 ## 1. Contexto e objetivo
@@ -35,6 +35,7 @@ O 0D está pronto quando:
 | D9 | **Migrations no build da Vercel, só em Production e no Preview do branch `staging`** | Rodam antes de a versão nova entrar no ar; migration com erro derruba o build e a versão anterior continua. Nenhuma senha de banco vai para o GitHub. Branches de PR nunca alteram o banco de staging |
 | D10 | **CI com Playwright contra o app em modo produção** | Pega erros que só aparecem no fluxo real e ativa o teste do service worker |
 | D11 | **Tudo funciona no plano Hobby da Vercel**; o CI roda no GitHub Actions | Sem custo novo |
+| D12 | **Instalar é sempre opcional.** Tudo funciona pelo link no navegador do celular. O convite para instalar é só um link discreto: sem janela, banner ou aviso que interrompa a cliente | Muitas clientes não querem instalar apps; o link vindo do Instagram precisa bastar |
 
 ## 3. Escopo
 
