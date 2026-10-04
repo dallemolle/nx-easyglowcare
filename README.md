@@ -25,6 +25,7 @@ Esse host depende de DNS público, então em dev é preciso estar online.
 ```bash
 pnpm test         # Vitest; usa o banco easyglowcare_test (precisa do pnpm db:up)
 pnpm test:e2e     # Playwright; veja "Equipe e login"
+pnpm test:e2e:prod  # build + Playwright em modo produção (igual ao CI)
 pnpm typecheck
 pnpm lint
 pnpm build
@@ -61,6 +62,28 @@ tabela `login_attempts`; por isso, depois dele, a senha do seed deixa de ser a d
 (rode `pnpm db:seed` de novo para voltar a ela). Ele se recusa a rodar se `DATABASE_URL` ou
 `DATABASE_URL_UNPOOLED` não apontarem para o banco local.
 
+## Instalar o app
+
+O app pode ser instalado no celular, como se fosse um aplicativo. A cliente instala pelo link
+"Instalar app" da página da clínica (`/<slug>/instalar`). A equipe instala pelo link "Instalar o
+painel no celular" na tela inicial do painel (`/admin/instalar`).
+
+- No Android, toque no botão "Instalar".
+- No iPhone, use o Safari: Compartilhar > Adicionar à Tela de Início.
+- Instalar é opcional: tudo funciona pelo link, no navegador.
+- Sem internet, o app mostra uma página "Sem conexão". Ele não guarda dado nenhum no aparelho.
+- O service worker só roda em modo produção (`pnpm build && pnpm start`), não no `pnpm dev`.
+
+## CI
+
+A cada PR para `staging` ou `main`, o GitHub roda o workflow `.github/workflows/ci.yml`: lint,
+checagem de tipos, testes, build e os testes de navegador em modo produção. Ele não usa nenhum
+segredo: sobe um Postgres próprio e dados de teste.
+
+Para exigir o CI antes do merge, no GitHub vá em Settings > Branches > Add branch ruleset (ou "Add
+rule") e crie a regra para `staging` e para `main`. Marque "Require status checks to pass" e escolha
+"Lint, tipos, testes, build e navegador".
+
 ## Fila de mensagens, auditoria e limpeza
 
 Nenhuma mensagem é enviada na hora: o código grava em `message_outbox` e um cron envia. Em
@@ -93,6 +116,14 @@ Os crons da Vercel só rodam no deploy de produção (`main`). Em staging (Previ
 disparam. Para testar lá, chame as rotas à mão, com o `CRON_SECRET` de Preview, como no exemplo
 local (trocando a URL).
 
+O staging tem a proteção de deploys da Vercel ligada. Por isso a chamada à mão precisa também do
+cabeçalho `x-vercel-protection-bypass`, com a chave criada em Settings > Deployment Protection >
+Protection Bypass for Automation:
+
+```powershell
+Invoke-RestMethod "https://SEU-ENDERECO-git-staging.vercel.app/api/cron/outbox" -Headers @{ Authorization = "Bearer $env:CRON_SECRET"; 'x-vercel-protection-bypass' = $env:VERCEL_BYPASS }
+```
+
 Aplique a migration `0003_outbox_audit` em cada banco antes do deploy. Se o deploy sair antes da
 migration, o site e o login continuam funcionando, mas os registros de auditoria desse período
 se perdem e os crons respondem 500 até a migration ser aplicada.
@@ -112,9 +143,15 @@ falhar.
 Antes do primeiro deploy da Fase 0B (login da equipe), siga estes passos **nesta ordem**:
 
 1. Cadastre `SESSION_SECRET` na Vercel (Settings > Environment Variables), **em Production e em Preview, com valores diferentes**. Gere cada valor com `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`.
-2. Aplique as migrations em cada banco (produção e staging) com a URL direta; a mais recente é a
-   `0003_outbox_audit` (só acrescenta tabelas), então é segura de aplicar com a versão
-   antiga do app ainda no ar. No PowerShell:
+2. As migrations rodam sozinhas no build da Vercel, em produção (`main`) e no staging; outros
+   branches não alteram nenhum banco. Confira que `DATABASE_URL_UNPOOLED` existe em Production
+   (banco de produção) e em Preview (banco de staging). Se uma migration falhar, o deploy falha e
+   a versão anterior continua no ar.
+
+   Toda migration precisa funcionar com a versão anterior do app ainda no ar: acrescentar tabela,
+   coluna opcional ou índice pode; apagar ou renomear se faz em duas etapas, em dois deploys.
+
+   Só em emergência, para aplicar à mão em um banco remoto, use a URL direta. No PowerShell:
 
    ```powershell
    $env:DATABASE_URL_UNPOOLED = "postgres://…"
@@ -126,7 +163,7 @@ Antes do primeiro deploy da Fase 0B (login da equipe), siga estes passos **nesta
    definida até você fechar a janela do terminal ou rodar o `Remove-Item`**. Se esquecer, os próximos
    comandos nessa janela vão atingir o banco remoto. Coloque a URL só na sua linha de comando; nunca
    a grave em arquivo versionado.
-3. Só então faça o merge e o deploy.
+3. Faça o merge e o deploy.
 4. Garanta que a clínica existe (veja "A clínica" abaixo).
 5. Crie o primeiro dono. O comando imprime o banco de destino (só o host) e a clínica antes de
    inserir, e depois uma senha provisória, uma única vez; a pessoa precisa trocá-la no primeiro login:
