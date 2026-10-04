@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   requirePermission: vi.fn(),
   refreshSessionCookie: vi.fn(),
+  recordStaffAudit: vi.fn(),
   revalidatePath: vi.fn(),
   createStaff: vi.fn(),
   changeStaffRole: vi.fn(),
@@ -13,6 +14,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/server/auth/current", () => ({
   requirePermission: mocks.requirePermission,
   refreshSessionCookie: mocks.refreshSessionCookie,
+  recordStaffAudit: mocks.recordStaffAudit,
 }));
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
 vi.mock("@/server/services/staff", () => {
@@ -48,25 +50,34 @@ const cases = [
     name: "createStaffAction",
     service: mocks.createStaff,
     call: () => createStaffAction({ name: "Ana", email: "a@b.co", role: "owner" }),
-    resolved: { user: {}, temporaryPassword: "senha-provisoria" },
+    resolved: { user: { id: ID, role: "owner" }, temporaryPassword: "senha-provisoria" },
+    audit: { action: "staff.created", entity: "staff_user", entityId: ID, metadata: { role: "owner" } },
   },
   {
     name: "changeRoleAction",
     service: mocks.changeStaffRole,
     call: () => changeRoleAction(ID, "owner"),
-    resolved: undefined,
+    resolved: { previousRole: "reception" },
+    audit: {
+      action: "staff.role_changed",
+      entity: "staff_user",
+      entityId: ID,
+      metadata: { from: "reception", to: "owner" },
+    },
   },
   {
     name: "setActiveAction",
     service: mocks.setStaffActive,
     call: () => setActiveAction(ID, false),
     resolved: undefined,
+    audit: { action: "staff.deactivated", entity: "staff_user", entityId: ID },
   },
   {
     name: "resetPasswordAction",
     service: mocks.resetStaffPassword,
     call: () => resetPasswordAction(ID),
     resolved: { temporaryPassword: "senha-provisoria" },
+    audit: { action: "staff.password_reset", entity: "staff_user", entityId: ID },
   },
 ];
 
@@ -87,7 +98,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe.each(cases)("$name", ({ service, call, resolved }) => {
+describe.each(cases)("$name", ({ service, call, resolved, audit }) => {
   it("sem permissão, a rejeição propaga e nenhum serviço é chamado", async () => {
     const denied = new Error("NEXT_NOT_FOUND");
     mocks.requirePermission.mockRejectedValue(denied);
@@ -97,6 +108,27 @@ describe.each(cases)("$name", ({ service, call, resolved }) => {
     for (const fn of services) expect(fn).not.toHaveBeenCalled();
     expect(mocks.refreshSessionCookie).not.toHaveBeenCalled();
     expect(mocks.revalidatePath).not.toHaveBeenCalled();
+    expect(mocks.recordStaffAudit).not.toHaveBeenCalled();
+  });
+
+  it("depois do sucesso registra a auditoria, sem a senha provisória", async () => {
+    service.mockResolvedValue(resolved);
+
+    await call();
+
+    expect(mocks.recordStaffAudit).toHaveBeenCalledExactlyOnceWith(staff, audit);
+    expect(JSON.stringify(mocks.recordStaffAudit.mock.calls)).not.toContain("senha-provisoria");
+    expect(service.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.recordStaffAudit.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("se o serviço falhar, nada é auditado", async () => {
+    service.mockRejectedValue(new StaffError("Usuário não encontrado."));
+
+    await call();
+
+    expect(mocks.recordStaffAudit).not.toHaveBeenCalled();
   });
 
   it("exige exatamente staff.manage", async () => {
@@ -148,6 +180,18 @@ describe.each(cases)("$name", ({ service, call, resolved }) => {
     expect(logged).not.toContain("hash-secreto");
     expect(logged).not.toContain("Failed query");
     expect(logged).toContain("08006");
+  });
+});
+
+it("setActiveAction(id, true) registra staff.reactivated", async () => {
+  mocks.setStaffActive.mockResolvedValue(undefined);
+
+  await setActiveAction(ID, true);
+
+  expect(mocks.recordStaffAudit).toHaveBeenCalledExactlyOnceWith(staff, {
+    action: "staff.reactivated",
+    entity: "staff_user",
+    entityId: ID,
   });
 });
 

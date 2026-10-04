@@ -8,6 +8,7 @@ import { generateTemporaryPassword, hashPassword, verifyPassword } from "@/serve
 import { revokeUserSessions } from "@/server/auth/session";
 import { professionals, staffUsers, type StaffRole, type StaffUser } from "@/server/db/schema";
 import type { TenantScope } from "@/server/db/tenant-scope";
+import { isUniqueViolation } from "@/server/errors";
 
 const SELF_ACCOUNT_ERROR = "Você não pode alterar a sua própria conta por aqui.";
 const NOT_FOUND_ERROR = "Usuário não encontrado.";
@@ -39,17 +40,6 @@ function toListItem(user: StaffUser): StaffListItem {
     mustChangePassword: user.mustChangePassword,
     lastLoginAt: user.lastLoginAt,
   };
-}
-
-/**
- * Violação de unicidade do Postgres (e-mail duplicado). No Drizzle 0.45 o erro do driver
- * pode vir embrulhado: o código aparece em `error.code` ou em `error.cause.code`.
- */
-function isUniqueViolation(error: unknown): boolean {
-  if (!error || typeof error !== "object") return false;
-  if ((error as { code?: unknown }).code === "23505") return true;
-  const cause = (error as { cause?: unknown }).cause;
-  return Boolean(cause && typeof cause === "object" && (cause as { code?: unknown }).code === "23505");
 }
 
 async function requireStaffUser(scope: TenantScope, staffUserId: string): Promise<StaffUser> {
@@ -127,7 +117,7 @@ export async function changeStaffRole(
   actor: Actor,
   staffUserId: string,
   role: StaffRole,
-): Promise<void> {
+): Promise<{ previousRole: StaffRole }> {
   if (staffUserId === actor.id) throw new StaffError(SELF_ACCOUNT_ERROR);
   const target = await requireStaffUser(scope, staffUserId);
 
@@ -136,6 +126,8 @@ export async function changeStaffRole(
   await scope.update(staffUsers, { role }, eq(staffUsers.id, staffUserId));
 
   if (role === "professional") await ensureProfessionalLink(scope, target);
+
+  return { previousRole: target.role };
 }
 
 /** Ativa/desativa outro usuário da equipe; desativar revoga todas as sessões dele. */

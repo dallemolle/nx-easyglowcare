@@ -31,3 +31,18 @@ export function formatDate(date: Date, timeZone: string): string {
   }
   return formatter.format(date);
 }
+
+/**
+ * Destinatário para log: telefone mostra só os 4 últimos dígitos; e-mail, a primeira letra e o
+ * domínio. Qualquer outro valor (curto, vazio, assinatura de push) fica totalmente oculto.
+ */
+export function maskRecipient(recipient: string): string {
+  const at = recipient.lastIndexOf("@");
+  if (at > 0) return `${recipient[0]}***${recipient.slice(at)}`;
+  if (at === 0) return "****";
+
+  const digits = recipient.replace(/\D/g, "");
+  const looksLikePhone = digits.length > 4 && /^[\d\s()+-]+$/.test(recipient);
+  if (!looksLikePhone) return "****";
+  return "*".repeat(digits.length - 4) + digits.slice(-4);
+}

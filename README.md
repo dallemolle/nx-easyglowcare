@@ -53,7 +53,7 @@ mostrada de novo. Em produção o seed só pode ser usado uma vez, em banco vazi
 
 A variável `SESSION_SECRET` (mínimo de 32 caracteres) é obrigatória para o app e para o build: sem
 ela o login e as sessões não funcionam. O script `pnpm staff:create` não a usa (verificado: com ela
-vazia ele roda normalmente). Para gerar uma: `openssl rand -base64 32`.
+vazia ele roda normalmente). Para gerar uma: `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`.
 
 `pnpm test:e2e` roda o Playwright com o Google Chrome instalado e precisa do `pnpm db:up`. Antes dos
 testes, ele refaz o seed no banco **local** de desenvolvimento com uma senha fixa de teste e limpa a
@@ -61,16 +61,59 @@ tabela `login_attempts`; por isso, depois dele, a senha do seed deixa de ser a d
 (rode `pnpm db:seed` de novo para voltar a ela). Ele se recusa a rodar se `DATABASE_URL` ou
 `DATABASE_URL_UNPOOLED` não apontarem para o banco local.
 
+## Fila de mensagens, auditoria e limpeza
+
+Nenhuma mensagem é enviada na hora: o código grava em `message_outbox` e um cron envia. Em
+desenvolvimento, o provedor `console` só imprime no terminal o canal, o modelo e o destinatário
+mascarado. As ações de acesso e de equipe ficam registradas em `audit_log` (ainda sem tela;
+consulte pelo `pnpm db:studio`).
+
+| Rota | O que faz | Agendamento (`vercel.json`) |
+|---|---|---|
+| `/api/cron/outbox` | Envia as mensagens vencidas (até 50 por execução, 5 tentativas) | por volta das 06:00 de Brasília, todo dia |
+| `/api/cron/cleanup` | Apaga tentativas de login e sessões com mais de 30 dias e mensagens enviadas há mais de 90 | por volta das 06:30 de Brasília, todo dia |
+
+As duas rotas exigem o cabeçalho `Authorization: Bearer <CRON_SECRET>`; sem a variável
+`CRON_SECRET` definida, respondem 401 e nada é processado. Para chamar localmente (com
+`pnpm dev` rodando e `CRON_SECRET` no `.env.local`), no PowerShell:
+
+```powershell
+$env:CRON_SECRET = 'o mesmo valor do .env.local'
+Invoke-RestMethod http://localhost:3000/api/cron/outbox -Headers @{ Authorization = "Bearer $env:CRON_SECRET" }
+Remove-Item Env:CRON_SECRET
+```
+
+**Na Vercel:** cadastre `CRON_SECRET` em Production e em Preview, com valores diferentes (gere
+com `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`), antes do
+merge e do deploy. A Vercel só entrega uma variável nova aos deploys feitos depois que ela foi
+cadastrada. Se cadastrar depois, faça um redeploy; senão os crons respondem 401 todo dia, sem
+nenhum aviso além do log. A Vercel envia o cabeçalho sozinha nas chamadas de cron.
+
+Os crons da Vercel só rodam no deploy de produção (`main`). Em staging (Preview) eles não
+disparam. Para testar lá, chame as rotas à mão, com o `CRON_SECRET` de Preview, como no exemplo
+local (trocando a URL).
+
+Aplique a migration `0003_outbox_audit` em cada banco antes do deploy. Se o deploy sair antes da
+migration, o site e o login continuam funcionando, mas os registros de auditoria desse período
+se perdem e os crons respondem 500 até a migration ser aplicada.
+
+**Plano Hobby x Pro:** o plano Hobby só aceita cron uma vez por dia, por isso a fila roda às
+06:00. No Hobby o horário não é exato: a chamada pode sair em qualquer momento dentro daquela
+hora. Antes de ligar os lembretes (Etapa 4), passe para o plano Pro e troque o agendamento da
+fila no `vercel.json` para `*/5 * * * *`. No Hobby, um agendamento mais frequente faz o deploy
+falhar.
+
 ## Neon + Vercel (preview e produção)
 
 1. No console do Neon, crie o projeto na região **AWS São Paulo (`aws-sa-east-1`)**. A região não muda depois.
 2. Na Vercel, instale a integração **Neon** no projeto e ative **"Create database branch for deployment: Preview"**.
    A integração injeta `DATABASE_URL` (pooled) e `DATABASE_URL_UNPOOLED` (direta) em cada ambiente.
+
 Antes do primeiro deploy da Fase 0B (login da equipe), siga estes passos **nesta ordem**:
 
-1. Cadastre `SESSION_SECRET` na Vercel (Settings > Environment Variables), **em Production e em Preview, com valores diferentes**. Gere cada valor com `openssl rand -base64 32`.
+1. Cadastre `SESSION_SECRET` na Vercel (Settings > Environment Variables), **em Production e em Preview, com valores diferentes**. Gere cada valor com `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`.
 2. Aplique as migrations em cada banco (produção e staging) com a URL direta; a mais recente é a
-   `0002_staff_auth`. Ela só acrescenta tabelas e uma coluna, então é segura de aplicar com a versão
+   `0003_outbox_audit` (só acrescenta tabelas), então é segura de aplicar com a versão
    antiga do app ainda no ar. No PowerShell:
 
    ```powershell
@@ -98,7 +141,9 @@ Antes do primeiro deploy da Fase 0B (login da equipe), siga estes passos **nesta
    depois pelo dono, em `/admin/equipe`.
 
 **Fora de ordem:** sem `SESSION_SECRET` o build falha (o deploy anterior continua no ar). Com o
-deploy antes da migration, a página pública segue funcionando, mas todo login dá erro.
+deploy antes da migration, a página pública segue funcionando, mas todo login dá erro. Isso vale
+para a `0002_staff_auth`; para a `0003_outbox_audit`, veja "Fila de mensagens, auditoria e
+limpeza".
 
 **A clínica.** `staff:create --tenant <slug>` exige que a clínica já exista; senão responde
 "Clínica não encontrada: <slug>". Hoje a única forma de criar uma clínica é o seed. Em produção ele

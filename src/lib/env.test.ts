@@ -33,6 +33,19 @@ describe("getEnv", () => {
     ).toThrow(/SESSION_SECRET/);
   });
 
+  it("CRON_SECRET é opcional e vazio conta como ausente", () => {
+    expect(getEnv(base).CRON_SECRET).toBeUndefined();
+    expect(getEnv({ ...base, CRON_SECRET: "" }).CRON_SECRET).toBeUndefined();
+  });
+
+  it("rejeita CRON_SECRET com menos de 16 caracteres", () => {
+    expect(() => getEnv({ ...base, CRON_SECRET: "x".repeat(15) })).toThrow(/CRON_SECRET/);
+  });
+
+  it("aceita CRON_SECRET com 16 caracteres", () => {
+    expect(getEnv({ ...base, CRON_SECRET: "x".repeat(16) }).CRON_SECRET).toHaveLength(16);
+  });
+
   it("aceita SESSION_SECRET com 32 caracteres", () => {
     expect(
       getEnv({ DATABASE_URL: "postgres://u:p@h:5432/d", SESSION_SECRET: "x".repeat(32) })

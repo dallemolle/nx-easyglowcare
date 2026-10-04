@@ -7,6 +7,8 @@ import { cache } from "react";
 import { db } from "@/server/db/client";
 import type { StaffUser, Tenant } from "@/server/db/schema";
 import { tenantScope, type TenantScope } from "@/server/db/tenant-scope";
+import { describeUnexpectedError } from "@/server/errors";
+import { safeRecordAudit, type AuditEntry } from "@/server/services/audit";
 
 import { login } from "./login";
 import { can, type Permission } from "./permissions";
@@ -99,6 +101,24 @@ export async function requirePermission(permission: Permission): Promise<Current
   return staff;
 }
 
+export type StaffAuditEntry = Omit<AuditEntry, "actor" | "ip">;
+
+/**
+ * Registra no `audit_log` uma ação do staff autenticado, com o IP da request. Chamada pelas
+ * Server Actions DEPOIS que a ação deu certo. Nunca lança: a ação já aconteceu.
+ */
+export async function recordStaffAudit(
+  staff: Pick<CurrentStaff, "scope" | "user">,
+  entry: StaffAuditEntry,
+): Promise<void> {
+  try {
+    const ip = clientIp((await headers()).get("x-forwarded-for"));
+    await safeRecordAudit(staff.scope, { ...entry, actor: { type: "staff", id: staff.user.id }, ip });
+  } catch (error) {
+    console.error(`[audit] falha ao registrar ${entry.action}:`, describeUnexpectedError(error));
+  }
+}
+
 /**
  * Login da equipe: lê IP e user-agent da request e grava o cookie de sessão. Só pode ser
  * chamada de uma Server Action ou Route Handler (onde é possível gravar cookie).
@@ -121,6 +141,14 @@ export async function signIn(
     expires: result.expiresAt,
   });
 
+  await safeRecordAudit(tenantScope(db, result.tenantId), {
+    actor: { type: "staff", id: result.staffUserId },
+    action: "auth.login",
+    entity: "staff_user",
+    entityId: result.staffUserId,
+    ip,
+  });
+
   return { ok: true, mustChangePassword: result.mustChangePassword };
 }
 
@@ -129,6 +157,13 @@ export async function signOut(): Promise<void> {
   const session = await getSession();
   if (session) {
     await revokeSession(db, session.sessionId);
+    await safeRecordAudit(tenantScope(db, session.tenant.id), {
+      actor: { type: "staff", id: session.user.id },
+      action: "auth.logout",
+      entity: "staff_user",
+      entityId: session.user.id,
+      ip: clientIp((await headers()).get("x-forwarded-for")),
+    });
   }
   (await cookies()).delete(SESSION_COOKIE);
 }
