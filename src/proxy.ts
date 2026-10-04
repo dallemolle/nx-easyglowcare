@@ -1,30 +1,65 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+import { buildCsp } from "@/lib/security/csp";
+
 // Nome do cookie de sessão (= `SESSION_COOKIE` em src/server/auth/session.ts). Duplicado de
-// propósito: o guia do Next recomenda não depender de módulos compartilhados no proxy — ele
-// roda isolado do resto da aplicação e pode ser implantado/otimizado separadamente.
+// propósito: o proxy não importa módulos de servidor (banco, sessão).
 const SESSION_COOKIE = "egc_session";
 const LOGIN_PATH = "/admin/login";
 
+function isPanelPath(pathname: string): boolean {
+  return pathname === "/admin" || pathname.startsWith("/admin/");
+}
+
+/** 16 bytes aleatórios em base64: imprevisível e diferente a cada requisição. */
+function generateNonce(): string {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return btoa(String.fromCharCode(...bytes));
+}
+
 /**
- * Atalho de UX para `/admin/*`: redireciona para o login quando não há cookie de sessão.
- * NÃO é a validação real (assinatura, revogação, expiração, troca de senha obrigatória) —
- * essa acontece em `requireStaff` (src/server/auth/current.ts), chamada pelo layout do
- * painel e por toda Server Action protegida.
+ * Roda em toda página (ver `config.matcher`):
+ * 1. Atalho de UX para `/admin/*`: sem cookie de sessão, vai para o login. NÃO é a validação
+ *    real (assinatura, revogação, expiração), que acontece em `requireStaff`
+ *    (src/server/auth/current.ts).
+ * 2. CSP com nonce: a política vai na requisição repassada (o Next lê dali o nonce e o aplica
+ *    nos scripts dele) e na resposta (o navegador aplica).
  */
 export function proxy(request: NextRequest) {
-  if (request.nextUrl.pathname === LOGIN_PATH) {
-    return NextResponse.next();
-  }
+  const { pathname, protocol } = request.nextUrl;
 
-  if (!request.cookies.has(SESSION_COOKIE)) {
+  if (isPanelPath(pathname) && pathname !== LOGIN_PATH && !request.cookies.has(SESSION_COOKIE)) {
     return NextResponse.redirect(new URL(LOGIN_PATH, request.url));
   }
 
-  return NextResponse.next();
+  const csp = buildCsp({
+    nonce: generateNonce(),
+    isDev: process.env.NODE_ENV === "development",
+    isPreview: process.env.VERCEL_ENV === "preview",
+    upgradeInsecureRequests: protocol === "https:",
+  });
+
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("Content-Security-Policy", csp);
+
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  response.headers.set("Content-Security-Policy", csp);
+  return response;
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: [
+    {
+      // Fora: /api (sem HTML), arquivos do Next, ícones, service worker, página "Sem conexão"
+      // e manifests (o navegador busca o manifest sem cookie; o do painel não pode ir para o login).
+      source:
+        "/((?!api/|_next/static|_next/image|favicon.ico|icons/|sw.js|offline.html|[^/]+/manifest.webmanifest).*)",
+      missing: [
+        { type: "header", key: "next-router-prefetch" },
+        { type: "header", key: "purpose", value: "prefetch" },
+      ],
+    },
+  ],
 };

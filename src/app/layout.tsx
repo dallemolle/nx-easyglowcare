@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -24,7 +25,11 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  // Lê a requisição para que nenhuma página seja gerada no build: o nonce da CSP (proxy.ts)
+  // só existe por requisição, e uma página pré-gerada sairia com scripts sem nonce.
+  await headers();
+
   return (
     <html
       lang="pt-BR"
