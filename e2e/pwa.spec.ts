@@ -63,3 +63,20 @@ test("o painel tem a tela de instalar", async ({ page }) => {
   await expect(page).toHaveURL(/\/admin\/instalar$/);
   await expect(page.getByRole("heading", { name: "Instalar o painel" })).toBeVisible();
 });
+
+test("o convite do navegador, disparado antes da tela, chega ao botão Instalar", async ({ page }) => {
+  await page.goto("/easyglowcare");
+  // O Chrome dispara o evento logo após o load, antes de abrirem a tela de instalar. Espera a
+  // hidratação, quando o registrador no layout já escuta o evento.
+  await page.waitForLoadState("networkidle");
+  await page.evaluate(() => {
+    const event = new Event("beforeinstallprompt", { cancelable: true });
+    Object.assign(event, { prompt: async () => {}, userChoice: Promise.resolve({ outcome: "accepted" }) });
+    window.dispatchEvent(event);
+  });
+
+  await page.getByRole("link", { name: "Instalar app" }).click(); // navegação no cliente
+  await expect(page).toHaveURL(/\/easyglowcare\/instalar$/);
+  await page.getByRole("button", { name: "Instalar", exact: true }).click();
+  await expect(page.getByText("já está instalado")).toBeVisible();
+});

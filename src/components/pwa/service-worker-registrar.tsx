@@ -2,16 +2,24 @@
 
 import { useEffect } from "react";
 
+import { setInstallPrompt, type BeforeInstallPromptEvent } from "@/lib/pwa/install-prompt";
+
 /**
  * Registra o service worker (só em produção: no `next dev` ele atrapalharia a atualização
- * automática) e impede o banner automático "instalar app" do navegador. Pela decisão D12, o
- * convite para instalar é só o link discreto da página; a tela /instalar continua oferecendo
- * o botão.
+ * automática) e cuida do convite de instalação do navegador. Pela decisão D12, o banner
+ * automático é suprimido (`preventDefault`); o evento fica guardado para a tela /instalar,
+ * que oferece o botão. O Chrome só o dispara uma vez por carga, então quem guarda tem de estar
+ * montado desde o início.
  */
 export function ServiceWorkerRegistrar() {
   useEffect(() => {
-    const blockAutomaticBanner = (event: Event) => event.preventDefault();
-    window.addEventListener("beforeinstallprompt", blockAutomaticBanner);
+    const keepInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      setInstallPrompt(event as BeforeInstallPromptEvent);
+    };
+    const clearInstallPrompt = () => setInstallPrompt(null);
+    window.addEventListener("beforeinstallprompt", keepInstallPrompt);
+    window.addEventListener("appinstalled", clearInstallPrompt);
 
     if (process.env.NODE_ENV === "production" && "serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js", { scope: "/", updateViaCache: "none" }).catch(() => {
@@ -19,7 +27,10 @@ export function ServiceWorkerRegistrar() {
       });
     }
 
-    return () => window.removeEventListener("beforeinstallprompt", blockAutomaticBanner);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", keepInstallPrompt);
+      window.removeEventListener("appinstalled", clearInstallPrompt);
+    };
   }, []);
 
   return null;

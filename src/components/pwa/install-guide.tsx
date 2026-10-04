@@ -1,15 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 
 import { Button } from "@/components/ui/button";
-import { useHydrated } from "@/lib/use-hydrated";
 import { detectInstallMode, type InstallMode } from "@/lib/pwa/install-mode";
-
-type BeforeInstallPromptEvent = Event & {
-  prompt(): Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-};
+import { getInstallPrompt, setInstallPrompt, subscribe } from "@/lib/pwa/install-prompt";
+import { useHydrated } from "@/lib/use-hydrated";
 
 function currentMode(canPrompt: boolean): InstallMode {
   return detectInstallMode({
@@ -22,36 +18,18 @@ function currentMode(canPrompt: boolean): InstallMode {
 
 /** Instruções de instalação. Instalar é opcional (D12): o texto sempre lembra disso. */
 export function InstallGuide({ appName }: { appName: string }) {
-  // Só depois da hidratação: o servidor não conhece o aparelho (e a regra de lint recusa
-  // setState direto num effect, por isso o modo é derivado no render).
+  // Só depois da hidratação: o servidor não conhece o aparelho. O convite do navegador vem do
+  // registrador do service worker (que o recebe logo após o load), não de um listener próprio.
   const hydrated = useHydrated();
-  const [promptEvent, setPromptEvent] = useState<BeforeInstallPromptEvent | null>(null);
+  const promptEvent = useSyncExternalStore(subscribe, getInstallPrompt, () => null);
   const [justInstalled, setJustInstalled] = useState(false);
-
-  useEffect(() => {
-    const onPrompt = (event: Event) => {
-      event.preventDefault();
-      setPromptEvent(event as BeforeInstallPromptEvent);
-    };
-    const onInstalled = () => {
-      setPromptEvent(null);
-      setJustInstalled(true);
-    };
-
-    window.addEventListener("beforeinstallprompt", onPrompt);
-    window.addEventListener("appinstalled", onInstalled);
-    return () => {
-      window.removeEventListener("beforeinstallprompt", onPrompt);
-      window.removeEventListener("appinstalled", onInstalled);
-    };
-  }, []);
 
   async function install() {
     if (!promptEvent) return;
     await promptEvent.prompt();
     const { outcome } = await promptEvent.userChoice;
     // O convite do navegador só pode ser usado uma vez.
-    setPromptEvent(null);
+    setInstallPrompt(null);
     if (outcome === "accepted") setJustInstalled(true);
   }
 
