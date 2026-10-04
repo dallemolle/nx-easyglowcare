@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
 import { Toaster } from "@/components/ui/sonner";
+import { APPLE_TOUCH_ICON, PWA_THEME_COLOR } from "@/lib/pwa/constants";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,11 +19,13 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: { default: "EasyGlowCare", template: "%s · EasyGlowCare" },
   description: "Agendamento online para clínicas de estética.",
+  icons: { apple: APPLE_TOUCH_ICON },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  themeColor: PWA_THEME_COLOR,
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
