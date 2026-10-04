@@ -1,0 +1,81 @@
+# Verificação de cada PR para staging/main (spec do 0D, seção 6). Usa só valores de teste:
+# nenhum segredo real e nenhum acesso ao Neon.
+name: CI
+
+on:
+  pull_request:
+    branches: [staging, main]
+  push:
+    branches: [staging, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificar:
+    name: Lint, tipos, testes, build e navegador
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: easyglowcare
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d easyglowcare"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+      neon-proxy:
+        image: ghcr.io/timowilhelm/local-neon-http-proxy:main
+        env:
+          PG_CONNECTION_STRING: postgres://postgres:postgres@postgres:5432/easyglowcare
+        ports:
+          - 4444:4444
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Criar o banco de teste
+        run: psql postgres://postgres:postgres@localhost:5432/easyglowcare -c "CREATE DATABASE easyglowcare_test"
+
+      - name: Criar o .env.local de CI (só valores de teste)
+        run: |
+          cat > .env.local <<'EOF'
+          DATABASE_URL=postgres://postgres:postgres@db.localtest.me:5432/easyglowcare
+          DATABASE_URL_UNPOOLED=postgres://postgres:postgres@localhost:5432/easyglowcare
+          TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/easyglowcare_test
+          NEXT_PUBLIC_APP_URL=http://localhost:3000
+          SESSION_SECRET=ci-session-secret-0123456789abcdefghij
+          CRON_SECRET=ci-cron-secret-0123456789
+          MESSAGING_PROVIDER=console
+          PAYMENT_PROVIDER=mock
+          SIGNATURE_PROVIDER=internal
+          EOF
+
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm db:migrate
+
+      # Faz o next build e roda o Playwright contra o app em modo produção (Chrome já
+      # instalado na máquina do GitHub).
+      - run: pnpm test:e2e:prod
