@@ -4,7 +4,12 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { staffRoleSchema } from "@/lib/validation/staff";
-import { refreshSessionCookie, requirePermission, type CurrentStaff } from "@/server/auth/current";
+import {
+  recordStaffAudit,
+  refreshSessionCookie,
+  requirePermission,
+  type CurrentStaff,
+} from "@/server/auth/current";
 import { describeUnexpectedError } from "@/server/errors";
 import {
   changeStaffRole,
@@ -52,7 +57,13 @@ async function run(
 export async function createStaffAction(input: unknown): Promise<StaffActionResult> {
   const staff = await requirePermission("staff.manage");
   return run(staff, async () => {
-    const { temporaryPassword } = await createStaff(staff.scope, input);
+    const { user, temporaryPassword } = await createStaff(staff.scope, input);
+    await recordStaffAudit(staff, {
+      action: "staff.created",
+      entity: "staff_user",
+      entityId: user.id,
+      metadata: { role: user.role },
+    });
     return { temporaryPassword };
   });
 }
@@ -62,7 +73,15 @@ export async function changeRoleAction(id: unknown, role: unknown): Promise<Staf
   const parsedId = idSchema.safeParse(id);
   const parsedRole = staffRoleSchema.safeParse(role);
   if (!parsedId.success || !parsedRole.success) return INVALID_INPUT;
-  return run(staff, () => changeStaffRole(staff.scope, staff.user, parsedId.data, parsedRole.data));
+  return run(staff, async () => {
+    const { previousRole } = await changeStaffRole(staff.scope, staff.user, parsedId.data, parsedRole.data);
+    await recordStaffAudit(staff, {
+      action: "staff.role_changed",
+      entity: "staff_user",
+      entityId: parsedId.data,
+      metadata: { from: previousRole, to: parsedRole.data },
+    });
+  });
 }
 
 export async function setActiveAction(id: unknown, isActive: unknown): Promise<StaffActionResult> {
@@ -70,12 +89,27 @@ export async function setActiveAction(id: unknown, isActive: unknown): Promise<S
   const parsedId = idSchema.safeParse(id);
   const parsedActive = activeSchema.safeParse(isActive);
   if (!parsedId.success || !parsedActive.success) return INVALID_INPUT;
-  return run(staff, () => setStaffActive(staff.scope, staff.user, parsedId.data, parsedActive.data));
+  return run(staff, async () => {
+    await setStaffActive(staff.scope, staff.user, parsedId.data, parsedActive.data);
+    await recordStaffAudit(staff, {
+      action: parsedActive.data ? "staff.reactivated" : "staff.deactivated",
+      entity: "staff_user",
+      entityId: parsedId.data,
+    });
+  });
 }
 
 export async function resetPasswordAction(id: unknown): Promise<StaffActionResult> {
   const staff = await requirePermission("staff.manage");
   const parsedId = idSchema.safeParse(id);
   if (!parsedId.success) return INVALID_INPUT;
-  return run(staff, () => resetStaffPassword(staff.scope, staff.user, parsedId.data));
+  return run(staff, async () => {
+    const { temporaryPassword } = await resetStaffPassword(staff.scope, staff.user, parsedId.data);
+    await recordStaffAudit(staff, {
+      action: "staff.password_reset",
+      entity: "staff_user",
+      entityId: parsedId.data,
+    });
+    return { temporaryPassword };
+  });
 }

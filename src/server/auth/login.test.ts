@@ -92,6 +92,8 @@ describe("login", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("esperava sucesso");
+    expect(result.staffUserId).toBe(activeStaff.id);
+    expect(result.tenantId).toBe(tenant.id);
 
     const session = await validateSession(db, result.cookieValue);
     expect(session?.user.id).toBe(activeStaff.id);

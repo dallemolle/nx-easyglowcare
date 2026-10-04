@@ -11,3 +11,14 @@ export function describeUnexpectedError(error: unknown): string {
     cause && typeof cause === "object" && "code" in cause ? (cause as { code?: unknown }).code : undefined;
   return code ? `${name} (code=${String(code)})` : name;
 }
+
+/**
+ * Violação de unicidade do Postgres. No Drizzle 0.45 o erro do driver pode vir embrulhado:
+ * o código aparece em `error.code` ou em `error.cause.code`.
+ */
+export function isUniqueViolation(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  if ((error as { code?: unknown }).code === "23505") return true;
+  const cause = (error as { cause?: unknown }).cause;
+  return Boolean(cause && typeof cause === "object" && (cause as { code?: unknown }).code === "23505");
+}

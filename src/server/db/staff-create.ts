@@ -7,6 +7,7 @@ import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 
+import { safeRecordAudit } from "@/server/services/audit";
 import { createStaff } from "@/server/services/staff";
 
 import { describeDatabaseTarget } from "./database-target";
@@ -43,6 +44,17 @@ async function main() {
     console.log(`Papel: ${user.role}`);
     console.log(`Senha provisória: ${temporaryPassword}`);
     console.log("Anote agora: ela não será mostrada de novo.");
+
+    // Auditoria só depois de mostrar a senha: ela aparece uma única vez e, se a gravação
+    // travar ou o comando for interrompido, a pessoa já existe e a senha se perderia.
+    // Ator "system": o comando roda no terminal, sem usuário logado.
+    await safeRecordAudit(scope, {
+      actor: { type: "system" },
+      action: "staff.created",
+      entity: "staff_user",
+      entityId: user.id,
+      metadata: { role: user.role },
+    });
   } finally {
     await pool.end();
   }
