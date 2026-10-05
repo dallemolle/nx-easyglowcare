@@ -16,8 +16,10 @@ Web app (PWA) para clínicas de estética, com três públicos:
 ## 2. Infraestrutura disponível
 
 - **Vercel** (hospedagem, Functions, Cron, Blob, Analytics). Região das Functions: `gru1` (São Paulo).
-- **Neon** (Postgres serverless). Projeto na região `aws-sa-east-1` (São Paulo), para latência baixa e dados no Brasil.
-- Integração Vercel ↔ Neon com **branch de banco por Preview Deployment**.
+- **Neon** (Postgres serverless), região `aws-sa-east-1` (São Paulo), para latência baixa e dados no Brasil. **Dois projetos separados, fixos:**
+  - **produção** (banco `nxegcprod`): variáveis da Vercel em **Production** (branch `main`);
+  - **staging** (banco `nxegcstg`): variáveis da Vercel em **Preview**. Todo Preview usa esse banco, inclusive os de PR.
+- **Decisão do dono, não alterar:** não usar branch de banco por Preview ("Create database branch for deployment"), não criar outros bancos e não trocar essa configuração. As migrations rodam no build da Vercel e precisam atingir o banco de staging (ver `src/server/db/deploy-migration.ts`). Qualquer mudança na infraestrutura de banco exige pedido explícito do dono.
 
 Tudo que depende de outro serviço (WhatsApp, SMS, e-mail, pagamento, assinatura digital etc.) é implementado **atrás de uma interface (adapter)** com uma implementação `console`/`mock` para desenvolvimento. Nunca acople regra de negócio a um fornecedor.
 

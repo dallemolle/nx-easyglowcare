@@ -1,6 +1,7 @@
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
 
 import { E2E_STAFF_PASSWORD, SESSION_COOKIE_NAME } from "./constants";
+import { expect, test } from "./fixtures";
 
 const OWNER_EMAIL = "dono@easyglowcare.test";
 

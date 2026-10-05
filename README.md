@@ -25,6 +25,7 @@ Esse host depende de DNS público, então em dev é preciso estar online.
 ```bash
 pnpm test         # Vitest; usa o banco easyglowcare_test (precisa do pnpm db:up)
 pnpm test:e2e     # Playwright; veja "Equipe e login"
+pnpm test:e2e:prod  # build + Playwright em modo produção (igual ao CI)
 pnpm typecheck
 pnpm lint
 pnpm build
@@ -61,6 +62,32 @@ tabela `login_attempts`; por isso, depois dele, a senha do seed deixa de ser a d
 (rode `pnpm db:seed` de novo para voltar a ela). Ele se recusa a rodar se `DATABASE_URL` ou
 `DATABASE_URL_UNPOOLED` não apontarem para o banco local.
 
+## Instalar o app
+
+O app pode ser instalado no celular, como se fosse um aplicativo. A cliente instala pelo link
+"Instalar app" da página da clínica (`/<slug>/instalar`). A equipe instala pelo link "Instalar o
+painel no celular" na tela inicial do painel (`/admin/instalar`).
+
+- No Android, toque no botão "Instalar".
+- No iPhone, use o Safari: Compartilhar > Adicionar à Tela de Início.
+- Instalar é opcional: tudo funciona pelo link, no navegador.
+- Sem internet, o app mostra uma página "Sem conexão". Ele não guarda dado nenhum no aparelho.
+- O service worker só roda em modo produção (`pnpm build && pnpm start`), não no `pnpm dev`.
+
+## CI
+
+A cada PR para `staging` ou `main`, e a cada push em `staging` e `main`, o GitHub roda o workflow `.github/workflows/ci.yml`: lint,
+checagem de tipos, testes, build e os testes de navegador em modo produção. Ele não usa nenhum
+segredo: sobe um Postgres próprio e dados de teste.
+
+Para exigir o CI antes do merge, no GitHub vá em Settings > Branches > Add branch ruleset (ou "Add
+rule") e crie a regra para `staging` e para `main`. Marque "Require status checks to pass" e escolha
+"Lint, tipos, testes, build e navegador". Em repositório privado, exigir o CI antes do merge pode
+precisar de plano pago do GitHub.
+
+Se o CI falhar nos testes de navegador, o relatório do Playwright fica em "Artifacts" na página da
+execução, por 7 dias.
+
 ## Fila de mensagens, auditoria e limpeza
 
 Nenhuma mensagem é enviada na hora: o código grava em `message_outbox` e um cron envia. Em
@@ -93,9 +120,19 @@ Os crons da Vercel só rodam no deploy de produção (`main`). Em staging (Previ
 disparam. Para testar lá, chame as rotas à mão, com o `CRON_SECRET` de Preview, como no exemplo
 local (trocando a URL).
 
-Aplique a migration `0003_outbox_audit` em cada banco antes do deploy. Se o deploy sair antes da
-migration, o site e o login continuam funcionando, mas os registros de auditoria desse período
-se perdem e os crons respondem 500 até a migration ser aplicada.
+O staging tem a proteção de deploys da Vercel ligada. Por isso a chamada à mão precisa também do
+cabeçalho `x-vercel-protection-bypass`, com a chave criada em Settings > Deployment Protection >
+Protection Bypass for Automation:
+
+```powershell
+$env:CRON_SECRET = 'o valor de Preview'
+$env:VERCEL_BYPASS = 'a chave do Protection Bypass'
+Invoke-RestMethod "https://SEU-ENDERECO-git-staging.vercel.app/api/cron/outbox" -Headers @{ Authorization = "Bearer $env:CRON_SECRET"; 'x-vercel-protection-bypass' = $env:VERCEL_BYPASS }
+Remove-Item Env:CRON_SECRET
+Remove-Item Env:VERCEL_BYPASS
+```
+
+A migration desta parte roda sozinha no deploy, como todas (veja "Neon + Vercel").
 
 **Plano Hobby x Pro:** o plano Hobby só aceita cron uma vez por dia, por isso a fila roda às
 06:00. No Hobby o horário não é exato: a chamada pode sair em qualquer momento dentro daquela
@@ -105,16 +142,26 @@ falhar.
 
 ## Neon + Vercel (preview e produção)
 
-1. No console do Neon, crie o projeto na região **AWS São Paulo (`aws-sa-east-1`)**. A região não muda depois.
-2. Na Vercel, instale a integração **Neon** no projeto e ative **"Create database branch for deployment: Preview"**.
-   A integração injeta `DATABASE_URL` (pooled) e `DATABASE_URL_UNPOOLED` (direta) em cada ambiente.
+1. No console do Neon, crie **dois projetos** na região **AWS São Paulo (`aws-sa-east-1`)**, um para
+   produção e outro para staging. A região não muda depois.
+2. Na Vercel, as variáveis de **Production** (`DATABASE_URL` pooled e `DATABASE_URL_UNPOOLED` direta)
+   apontam para o banco de produção, e as de **Preview** para o banco de staging.
+   **Não** ative "Create database branch for deployment" na integração do Neon: com ela, cada
+   Preview, inclusive o staging, ganharia um banco descartável, e as migrations automáticas de
+   staging iriam para ele.
 
-Antes do primeiro deploy da Fase 0B (login da equipe), siga estes passos **nesta ordem**:
+Antes de um deploy (é a lista de conferência de qualquer deploy), siga estes passos **nesta ordem**:
 
 1. Cadastre `SESSION_SECRET` na Vercel (Settings > Environment Variables), **em Production e em Preview, com valores diferentes**. Gere cada valor com `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`.
-2. Aplique as migrations em cada banco (produção e staging) com a URL direta; a mais recente é a
-   `0003_outbox_audit` (só acrescenta tabelas), então é segura de aplicar com a versão
-   antiga do app ainda no ar. No PowerShell:
+2. As migrations rodam sozinhas no build da Vercel, em produção (`main`) e no staging; outros
+   branches não alteram nenhum banco. Confira que `DATABASE_URL_UNPOOLED` existe em Production
+   (banco de produção) e em Preview (banco de staging). Se uma migration falhar, o deploy falha e
+   a versão anterior continua no ar.
+
+   Toda migration precisa funcionar com a versão anterior do app ainda no ar: acrescentar tabela,
+   coluna opcional ou índice pode; apagar ou renomear se faz em duas etapas, em dois deploys.
+
+   Só em emergência, para aplicar à mão em um banco remoto, use a URL direta. No PowerShell:
 
    ```powershell
    $env:DATABASE_URL_UNPOOLED = "postgres://…"
@@ -126,7 +173,7 @@ Antes do primeiro deploy da Fase 0B (login da equipe), siga estes passos **nesta
    definida até você fechar a janela do terminal ou rodar o `Remove-Item`**. Se esquecer, os próximos
    comandos nessa janela vão atingir o banco remoto. Coloque a URL só na sua linha de comando; nunca
    a grave em arquivo versionado.
-3. Só então faça o merge e o deploy.
+3. Faça o merge e o deploy.
 4. Garanta que a clínica existe (veja "A clínica" abaixo).
 5. Crie o primeiro dono. O comando imprime o banco de destino (só o host) e a clínica antes de
    inserir, e depois uma senha provisória, uma única vez; a pessoa precisa trocá-la no primeiro login:
@@ -140,10 +187,11 @@ Antes do primeiro deploy da Fase 0B (login da equipe), siga estes passos **nesta
    `--role` aceita `owner`, `reception` ou `professional`. Os demais usuários podem ser criados
    depois pelo dono, em `/admin/equipe`.
 
-**Fora de ordem:** sem `SESSION_SECRET` o build falha (o deploy anterior continua no ar). Com o
-deploy antes da migration, a página pública segue funcionando, mas todo login dá erro. Isso vale
-para a `0002_staff_auth`; para a `0003_outbox_audit`, veja "Fila de mensagens, auditoria e
-limpeza".
+**Fora de ordem:** sem `SESSION_SECRET` ou sem `DATABASE_URL_UNPOOLED` (em produção ou no
+staging), o build falha e o deploy anterior continua no ar. O mesmo vale se uma migration falhar.
+
+Os Previews de PR usam o banco de staging, sem migrar. Um PR que traz migration nova fica com o
+Preview quebrado até o merge em `staging`.
 
 **A clínica.** `staff:create --tenant <slug>` exige que a clínica já exista; senão responde
 "Clínica não encontrada: <slug>". Hoje a única forma de criar uma clínica é o seed. Em produção ele
@@ -155,9 +203,9 @@ rode o seed em produção: ele apaga e recria a clínica `easyglowcare`.
 **Dono sem acesso.** Não há "esqueci minha senha": se o dono perder o acesso, crie outro dono com
 `pnpm staff:create`, usando outro e-mail.
 
-**Preview.** Para popular um branch de preview com a clínica de exemplo (e os usuários de exemplo,
-com a senha de `SEED_STAFF_PASSWORD` ou uma senha gerada e impressa), defina a URL direta do branch
-como acima e rode `pnpm db:seed -- --force`. Sem `--force`, o seed recusa qualquer banco que não
-seja local. O `.env.local` não precisa existir (o script usa `--env-file-if-exists`).
+**Staging e Previews.** Todos os Previews (o staging e os de PR) usam o mesmo banco de staging; não
+existe banco por Preview. **Não rode o seed em staging:** ele apaga e recria a clínica
+`easyglowcare`, junto com os usuários e registros dela. Sem `--force`, o seed recusa qualquer banco
+que não seja local.
 
 As Functions rodam em `gru1` (São Paulo), definido no `vercel.json`.

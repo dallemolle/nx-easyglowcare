@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { Clock, MapPin } from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 
@@ -38,6 +39,12 @@ export default async function TenantPage({ params }: PageProps<"/[slug]">) {
             {location.address}
           </p>
         )}
+        <Link
+          href={`/${tenant.slug}/instalar`}
+          className="self-start text-sm text-muted-foreground underline underline-offset-4"
+        >
+          Instalar app
+        </Link>
       </header>
 
       {catalog.length === 0 ? (
