@@ -10,7 +10,9 @@ const ICONS: Record<string, { size: number; maskable: boolean }> = {
 };
 
 export async function GET(_request: Request, { params }: RouteContext<"/icons/[name]">) {
-  const icon = ICONS[(await params).name];
+  const { name } = await params;
+  // hasOwn: nomes herdados do objeto (`constructor`, `__proto__`) não são ícones.
+  const icon = Object.hasOwn(ICONS, name) ? ICONS[name] : undefined;
   if (!icon) return new Response("Not found", { status: 404 });
   return renderAppIcon(icon.size, icon.maskable);
 }

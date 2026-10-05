@@ -13,7 +13,7 @@ permissions:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   verificar:
@@ -44,6 +44,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
       - uses: pnpm/action-setup@v4
 
@@ -79,3 +81,13 @@ jobs:
       # Faz o next build e roda o Playwright contra o app em modo produção (Chrome já
       # instalado na máquina do GitHub).
       - run: pnpm test:e2e:prod
+
+      - name: Guardar o relatório do Playwright (só se falhar)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-relatorio
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

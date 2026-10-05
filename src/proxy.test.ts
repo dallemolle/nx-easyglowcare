@@ -42,6 +42,16 @@ describe("matcher do proxy", () => {
       unstable_doesMiddlewareMatch({ config, url: "/easyglowcare", headers: { "next-router-prefetch": "1" } }),
     ).toBe(false);
   });
+
+  it("roda em pré-carregamento de documento do navegador", () => {
+    expect(
+      unstable_doesMiddlewareMatch({ config, url: "/easyglowcare", headers: { purpose: "prefetch" } }),
+    ).toBe(true);
+  });
+
+  it.each(["/sw-js", "/swxjs/instalar", "/offline-html"])("roda em slugs parecidos com arquivos excluídos: %s", (url) => {
+    expect(unstable_doesMiddlewareMatch({ config, url })).toBe(true);
+  });
 });
 
 describe("proxy", () => {
@@ -66,9 +76,11 @@ describe("proxy", () => {
     expect(csp).not.toContain("upgrade-insecure-requests");
   });
 
-  it("em Preview libera vercel.live", () => {
+  it("em Preview a política é a mesma de produção", () => {
     vi.stubEnv("VERCEL_ENV", "preview");
-    expect(proxy(new NextRequest("https://app.test/")).headers.get(CSP)).toContain("https://vercel.live");
+    const csp = proxy(new NextRequest("https://app.test/")).headers.get(CSP);
+    expect(csp).not.toContain("vercel.live");
+    expect(csp).toContain("script-src 'self' 'nonce-");
   });
 
   it("/admin sem cookie redireciona para o login", () => {

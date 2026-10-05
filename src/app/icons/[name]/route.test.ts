@@ -21,4 +21,8 @@ describe("GET /icons/[name]", () => {
   it("nome desconhecido dá 404", async () => {
     expect((await call("icone-qualquer.png")).status).toBe(404);
   });
+
+  it.each(["constructor", "__proto__", "toString"])("nome herdado do objeto (%s) dá 404", async (name) => {
+    expect((await call(name)).status).toBe(404);
+  });
 });

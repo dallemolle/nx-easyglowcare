@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { buildCsp, type CspOptions } from "./csp";
 
-const PROD: CspOptions = { nonce: "abc123", isDev: false, isPreview: false, upgradeInsecureRequests: true };
+const PROD: CspOptions = { nonce: "abc123", isDev: false, upgradeInsecureRequests: true };
 
 function directives(csp: string): Map<string, string> {
   return new Map(
@@ -50,14 +50,9 @@ describe("buildCsp", () => {
     expect(directives(buildCsp({ ...PROD, upgradeInsecureRequests: false })).has("upgrade-insecure-requests")).toBe(false);
   });
 
-  it("Preview: libera vercel.live para a barra de comentários; produção não", () => {
-    const preview = directives(buildCsp({ ...PROD, isPreview: true }));
-
-    expect(preview.get("script-src")).toContain("https://vercel.live");
-    expect(preview.get("connect-src")).toContain("https://vercel.live");
-    expect(preview.get("img-src")).toContain("https://vercel.live");
-    expect(preview.get("frame-src")).toBe("https://vercel.live");
+  it("nunca libera vercel.live, nem em Preview", () => {
     expect(buildCsp(PROD)).not.toContain("vercel.live");
+    expect(directives(buildCsp(PROD)).has("frame-src")).toBe(false);
   });
 
   it("o nonce entra só em script-src", () => {

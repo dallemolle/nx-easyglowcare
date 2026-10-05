@@ -37,7 +37,6 @@ export function proxy(request: NextRequest) {
   const csp = buildCsp({
     nonce: generateNonce(),
     isDev: process.env.NODE_ENV === "development",
-    isPreview: process.env.VERCEL_ENV === "preview",
     upgradeInsecureRequests: protocol === "https:",
   });
 
@@ -54,12 +53,13 @@ export const config = {
     {
       // Fora: /api (sem HTML), arquivos do Next, ícones, service worker, página "Sem conexão"
       // e manifests (o navegador busca o manifest sem cookie; o do painel não pode ir para o login).
+      // Arquivos exatos são ancorados com `$` e têm o ponto escapado, para não pegar slugs como
+      // `/sw-js`. Fora também o prefetch de dados do next/link (`next-router-prefetch`, nunca um
+      // documento). `Purpose: prefetch` NÃO entra: o navegador o manda ao pré-carregar documentos
+      // (prerender), e esse documento precisa da CSP porque será usado na navegação real.
       source:
-        "/((?!api/|_next/static|_next/image|favicon.ico|icons/|sw.js|offline.html|[^/]+/manifest.webmanifest).*)",
-      missing: [
-        { type: "header", key: "next-router-prefetch" },
-        { type: "header", key: "purpose", value: "prefetch" },
-      ],
+        "/((?!api/|_next/static|_next/image|icons/|sw\\.js$|offline\\.html$|favicon\\.ico$|[^/]+/manifest\\.webmanifest$).*)",
+      missing: [{ type: "header", key: "next-router-prefetch" }],
     },
   ],
 };

@@ -7,6 +7,9 @@ import base from "./playwright.config";
 export default defineConfig({
   ...base,
   testIgnore: undefined,
+  // No CI, o relatório HTML e o trace das falhas viram artefato (ver .github/workflows/ci.yml).
+  reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
+  use: { ...base.use, trace: "retain-on-failure" },
   webServer: {
     command: "pnpm start",
     url: "http://localhost:3000",
