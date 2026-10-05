@@ -36,9 +36,9 @@ const envSchema = z
     for (const phone of data.OTP_TEST_PHONES) {
       if (!isValidMobile(phone)) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: "custom",
           path: ["OTP_TEST_PHONES"],
-          message: `OTP_TEST_PHONES: celular inválido (${phone}).`,
+          message: "celular inválido.",
         });
         break;
       }
@@ -47,9 +47,9 @@ const envSchema = z
     // Proíbe OTP_TEST_PHONES em produção se não estiver vazio
     if (data.VERCEL_ENV === "production" && data.OTP_TEST_PHONES.length > 0) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: ["OTP_TEST_PHONES"],
-        message: "OTP_TEST_PHONES: proibida em produção.",
+        message: "proibida em produção.",
       });
     }
   });

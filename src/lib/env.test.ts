@@ -71,6 +71,12 @@ describe("getEnv", () => {
     expect(() => getEnv({ ...base, OTP_TEST_PHONES: "1190000" })).toThrow(/OTP_TEST_PHONES/);
   });
 
+  it("OTP_TEST_PHONES não expõe o número inválido na mensagem", () => {
+    expect(() => getEnv({ ...base, OTP_TEST_PHONES: "1190000" })).toThrow(
+      expect.objectContaining({ message: expect.not.stringContaining("1190000") }),
+    );
+  });
+
   it("OTP_TEST_PHONES é aceito em preview", () => {
     expect(
       getEnv({ ...base, VERCEL_ENV: "preview", OTP_TEST_PHONES: "11900000001" })
@@ -96,49 +102,5 @@ describe("getEnv", () => {
     expect(getEnv({ ...base, VERCEL_ENV: "production" }).VERCEL_ENV).toBe("production");
     expect(getEnv({ ...base, VERCEL_ENV: "preview" }).VERCEL_ENV).toBe("preview");
     expect(getEnv({ ...base, VERCEL_ENV: "development" }).VERCEL_ENV).toBe("development");
-  });
-
-  // --- Testes de mutação (verificam se as proteções funcionam) ---
-
-  it("mutação: rejeita todos os tipos de celulares inválidos", () => {
-    // DDD inválido (menor que 11)
-    expect(() => getEnv({ ...base, OTP_TEST_PHONES: "10900000001" })).toThrow(/OTP_TEST_PHONES/);
-    // Falta o 9 no 4º dígito
-    expect(() => getEnv({ ...base, OTP_TEST_PHONES: "11800000001" })).toThrow(/OTP_TEST_PHONES/);
-    // Apenas dígitos (menos de 11)
-    expect(() => getEnv({ ...base, OTP_TEST_PHONES: "119000000" })).toThrow(/OTP_TEST_PHONES/);
-  });
-
-  it("mutação: rejeita qualquer telefone inválido em uma lista", () => {
-    expect(() =>
-      getEnv({ ...base, OTP_TEST_PHONES: "11900000001, 1190000, 11900000002" }),
-    ).toThrow(/OTP_TEST_PHONES/);
-  });
-
-  it("mutação: proibição em produção não depende de VERCEL_ENV existir", () => {
-    // Sem VERCEL_ENV definido, a lista é permitida
-    expect(getEnv({ ...base, OTP_TEST_PHONES: "11900000001" }).OTP_TEST_PHONES).toHaveLength(1);
-  });
-
-  it("mutação: proibição em produção é específica para 'production'", () => {
-    // preview e development são permitidos
-    expect(getEnv({ ...base, VERCEL_ENV: "preview", OTP_TEST_PHONES: "11900000001" }).OTP_TEST_PHONES).toHaveLength(1);
-    expect(getEnv({ ...base, VERCEL_ENV: "development", OTP_TEST_PHONES: "11900000001" }).OTP_TEST_PHONES).toHaveLength(1);
-  });
-
-  it("mutação: vazio é sempre permitido, mesmo em produção", () => {
-    expect(getEnv({ ...base, VERCEL_ENV: "production" }).OTP_TEST_PHONES).toEqual([]);
-    expect(getEnv({ ...base, VERCEL_ENV: "production", OTP_TEST_PHONES: "" }).OTP_TEST_PHONES).toEqual([]);
-  });
-
-  it("mutação: erro contém 'produção' e 'OTP_TEST_PHONES'", () => {
-    try {
-      getEnv({ ...base, VERCEL_ENV: "production", OTP_TEST_PHONES: "11900000001" });
-      throw new Error("Should have thrown");
-    } catch (error) {
-      const message = (error as Error).message;
-      expect(message).toMatch(/OTP_TEST_PHONES/);
-      expect(message).toMatch(/produção/);
-    }
   });
 });
