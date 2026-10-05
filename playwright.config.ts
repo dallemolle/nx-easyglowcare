@@ -2,6 +2,7 @@ import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
   testDir: "e2e",
+  testIgnore: "**/*.prod.spec.ts",
   globalSetup: "./e2e/global-setup.ts",
   // Série: os testes compartilham o banco de dev (seed + login_attempts) e a sessão não deve
   // ser disputada por workers em paralelo.

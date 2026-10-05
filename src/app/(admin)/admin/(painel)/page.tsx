@@ -14,6 +14,9 @@ export default async function AdminPage() {
           Equipe
         </Link>
       )}
+      <Link href="/admin/instalar" className="text-sm underline underline-offset-4">
+        Instalar o painel no celular
+      </Link>
     </div>
   );
 }

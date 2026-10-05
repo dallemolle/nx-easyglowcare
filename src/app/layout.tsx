@@ -1,8 +1,11 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
+import { ServiceWorkerRegistrar } from "@/components/pwa/service-worker-registrar";
 import { Toaster } from "@/components/ui/sonner";
+import { APPLE_TOUCH_ICON, PWA_THEME_COLOR } from "@/lib/pwa/constants";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -17,14 +20,20 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: { default: "EasyGlowCare", template: "%s · EasyGlowCare" },
   description: "Agendamento online para clínicas de estética.",
+  icons: { apple: APPLE_TOUCH_ICON },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  themeColor: PWA_THEME_COLOR,
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  // Lê a requisição para que nenhuma página seja gerada no build: o nonce da CSP (proxy.ts)
+  // só existe por requisição, e uma página pré-gerada sairia com scripts sem nonce.
+  await headers();
+
   return (
     <html
       lang="pt-BR"
@@ -32,6 +41,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col">
         {children}
+        <ServiceWorkerRegistrar />
         <Toaster />
       </body>
     </html>
