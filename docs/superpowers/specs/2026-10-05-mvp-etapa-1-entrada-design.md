@@ -1,7 +1,7 @@
 # MVP, Etapa 1: entrada sem senha (design)
 
 - **Data:** 05/10/2026
-- **Status:** aguardando revisão do dono
+- **Status:** aprovada
 - **Referências:** `CLAUDE.md` (seções 1, 4, 5, 6 e 7), `ROADMAP.md` (MVP, "Fluxo de entrada"), specs do 0A, 0B, 0C e 0D; nota `docs/superpowers/notes/2026-10-02-fase-0c-pendencias.md` (código OTP oculto no staging)
 
 ## 1. Contexto e objetivo
