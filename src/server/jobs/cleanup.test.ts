@@ -5,9 +5,13 @@ import {
   auditLog,
   loginAttempts,
   messageOutbox,
+  otpCodes,
+  people,
+  personSessions,
   sessions,
   staffUsers,
   tenants,
+  type Person,
   type StaffUser,
   type Tenant,
 } from "../db/schema";
@@ -21,6 +25,7 @@ const daysAgo = (days: number, extraMs = 0) => new Date(NOW.getTime() - days * D
 
 let tenant: Tenant;
 let staff: StaffUser;
+let person: Person;
 let info: ReturnType<typeof vi.spyOn>;
 
 beforeEach(async () => {
@@ -30,6 +35,10 @@ beforeEach(async () => {
   [staff] = await db
     .insert(staffUsers)
     .values({ tenantId: tenant.id, name: "Ana", email: "ana@clinica-a.test", passwordHash: "hash", role: "owner" })
+    .returning();
+  [person] = await db
+    .insert(people)
+    .values({ tenantId: tenant.id, name: "Maria", cpf: "52998224725", phone: "11987654321", source: "direct" })
     .returning();
 });
 
@@ -51,6 +60,24 @@ function message(template: string, status: "pending" | "sent" | "failed", sentAt
     status,
     sentAt,
   };
+}
+
+function otpCode(purpose: "signup" | "login", createdAt: Date, expiresAt: Date | null = null) {
+  return {
+    tenantId: tenant.id,
+    purpose,
+    personId: purpose === "login" ? person.id : undefined,
+    phone: "11987654321",
+    channel: "whatsapp" as const,
+    codeHash: "hash",
+    expiresAt: expiresAt ?? daysAgo(200),
+    createdAt,
+    pendingSignup: purpose === "signup" ? { name: "Maria", cpf: "52998224725", phone: "11987654321", marketing: false, termsVersion: "v1", origin: {} } : undefined,
+  };
+}
+
+function personSession(tokenHash: string, expiresAt: Date, revokedAt: Date | null = null) {
+  return { tenantId: tenant.id, personId: person.id, tokenHash, expiresAt, revokedAt };
 }
 
 describe("cleanupOldData", () => {
@@ -121,8 +148,41 @@ describe("cleanupOldData", () => {
     expect(await db.select().from(auditLog)).toHaveLength(1);
   });
 
+  it("apaga otp_codes com mais de 24 horas e mantém os recentes", async () => {
+    const OTP_DAY_MS = 24 * 60 * 60 * 1000;
+    const otpCutoff = new Date(NOW.getTime() - OTP_DAY_MS);
+
+    await db.insert(otpCodes).values([
+      { ...otpCode("signup", daysAgo(1, 1)), createdAt: new Date(otpCutoff.getTime() - 1) },
+      { ...otpCode("login", daysAgo(1, 1), new Date(NOW.getTime() + 300_000)), createdAt: new Date(otpCutoff.getTime() + 1) },
+      { ...otpCode("signup", daysAgo(0.5)), createdAt: new Date(otpCutoff.getTime() + DAY / 2) },
+    ]);
+
+    const result = await cleanupOldData(db, NOW);
+
+    expect(result.otpCodes).toBe(1);
+    const left = await db.select().from(otpCodes);
+    expect(left).toHaveLength(2);
+  });
+
+  it("apaga person_sessions expiradas ou revogadas há mais de 30 dias", async () => {
+    await db.insert(personSessions).values([
+      personSession("expirada-velha", daysAgo(30, 1)),
+      personSession("revogada-velha", new Date(NOW.getTime() + DAY), daysAgo(30, 1)),
+      personSession("expirada-recente", daysAgo(29)),
+      personSession("revogada-recente", new Date(NOW.getTime() + DAY), daysAgo(29)),
+      personSession("ativa", new Date(NOW.getTime() + DAY)),
+    ]);
+
+    const result = await cleanupOldData(db, NOW);
+
+    expect(result.personSessions).toBe(2);
+    const left = await db.select().from(personSessions);
+    expect(left.map((row) => row.tokenHash).sort()).toEqual(["ativa", "expirada-recente", "revogada-recente"]);
+  });
+
   it("sem nada para apagar devolve zeros e loga só as contagens", async () => {
-    expect(await cleanupOldData(db, NOW)).toEqual({ loginAttempts: 0, sessions: 0, sentMessages: 0 });
+    expect(await cleanupOldData(db, NOW)).toEqual({ loginAttempts: 0, sessions: 0, personSessions: 0, otpCodes: 0, sentMessages: 0 });
     expect(JSON.stringify(info.mock.calls)).toContain("login_attempts=0");
   });
 });

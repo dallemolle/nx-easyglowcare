@@ -23,7 +23,7 @@ const routes = [
     name: "/api/cron/cleanup",
     GET: cleanupGET,
     job: mocks.runCleanupJob,
-    counts: { loginAttempts: 3, sessions: 2, sentMessages: 1 },
+    counts: { loginAttempts: 3, sessions: 2, personSessions: 1, otpCodes: 2, sentMessages: 1 },
   },
 ];
 
