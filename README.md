@@ -203,9 +203,9 @@ rode o seed em produção: ele apaga e recria a clínica `easyglowcare`.
 **Dono sem acesso.** Não há "esqueci minha senha": se o dono perder o acesso, crie outro dono com
 `pnpm staff:create`, usando outro e-mail.
 
-**Preview.** Para popular um branch de preview com a clínica de exemplo (e os usuários de exemplo,
-com a senha de `SEED_STAFF_PASSWORD` ou uma senha gerada e impressa), defina a URL direta do branch
-como acima e rode `pnpm db:seed -- --force`. Sem `--force`, o seed recusa qualquer banco que não
-seja local. O `.env.local` não precisa existir (o script usa `--env-file-if-exists`).
+**Staging e Previews.** Todos os Previews (o staging e os de PR) usam o mesmo banco de staging; não
+existe banco por Preview. **Não rode o seed em staging:** ele apaga e recria a clínica
+`easyglowcare`, junto com os usuários e registros dela. Sem `--force`, o seed recusa qualquer banco
+que não seja local.
 
 As Functions rodam em `gru1` (São Paulo), definido no `vercel.json`.

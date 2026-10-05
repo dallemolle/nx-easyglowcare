@@ -19,7 +19,7 @@ Legenda usada em todos os itens:
 ## 1. Fase 0 — Fundação (tudo [VN])
 
 - [x] Repositório Next.js + TypeScript + Tailwind + shadcn/ui + Drizzle
-- [ ] Projeto Neon em `aws-sa-east-1`, integração Vercel ↔ Neon com branch por preview (código pronto; falta criar o projeto e conectar à Vercel)
+- [x] Neon em `aws-sa-east-1` conectado à Vercel: um projeto de produção (Production) e um de staging (todos os Previews). Sem branch de banco por Preview; não alterar sem pedido do dono (ver CLAUDE.md, seção 2)
 - [x] Functions na região `gru1`
 - [x] Schema multi-tenant (`tenants`, `locations`), helper de escopo por tenant
 - [x] Rotas `/[slug]` (site público), `/minha-conta` (cliente), `/admin` (clínica)

@@ -26,7 +26,7 @@ O 0A está pronto quando um tenant criado pelo seed aparece em `/easyglowcare`, 
 | D3 | drizzle-kit, seed e testes usam **`pg` (TCP)** com `DATABASE_URL_UNPOOLED` / `TEST_DATABASE_URL` | Funciona igual com o Docker e com a URL direct do Neon |
 | D4 | **FKs compostas** `(tenant_id, x_id) → pai(tenant_id, id)` entre tabelas de negócio | O banco impede que um filho aponte para o pai de outro tenant |
 | D5 | O seed troca "Clínica Bella" por **"EasyGlowCare"**; o CLAUDE.md e o ROADMAP.md são atualizados para bater | Pedido do usuário |
-| D6 | Neon (projeto em `aws-sa-east-1`, integração com a Vercel, branch por preview) é configurado pelo usuário; o README traz o passo a passo | Depende da conta do usuário |
+| D6 | Neon (projeto em `aws-sa-east-1`, integração com a Vercel, branch por preview) é configurado pelo usuário; o README traz o passo a passo. **Superado:** a infraestrutura real são dois projetos fixos (produção e staging), sem branch por preview (ver `CLAUDE.md`, seção 2) | Depende da conta do usuário |
 
 ## 3. Escopo
 
