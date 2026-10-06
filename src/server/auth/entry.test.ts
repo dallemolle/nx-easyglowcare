@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getTestDb, resetDb } from "../../../test/db";
+import { parseOriginCookie } from "../../lib/lead-origin";
 import type { MessagingProvider, SendOtpInput } from "../adapters/messaging";
 import { otpCodes, people, personConsents, personSessions, tenants, type Person, type Tenant } from "../db/schema";
 
@@ -144,6 +145,20 @@ describe("pessoa nova", () => {
     const session = await validateClientSession(db, tenant.id, result.cookieValue, at(MINUTE));
     expect(session?.person.id).toBe(person.id);
     expect((await challengeRow(sent.challengeId)).consumedAt).toEqual(at(MINUTE));
+  });
+});
+
+describe("cookie de origem adulterado", () => {
+  it("valor com \\u0000 ou metade de emoji não impede o cadastro", async () => {
+    const poisoned = JSON.stringify({ ref: "a\u0000b", utm_campaign: "x\ud83d", utm_source: "instagram" });
+
+    const sent = await startSignup(db, tenant.id, SIGNUP, parseOriginCookie(poisoned), META, deps, T0);
+
+    if (sent.kind !== "code-sent") throw new Error(`esperava code-sent, veio ${JSON.stringify(sent)}`);
+    const result = await verifyCode(db, tenant.id, sent.challengeId, { code: lastCode() }, META, T0);
+    expect(result.kind).toBe("signed-in");
+    const [person] = await db.select().from(people);
+    expect(person.source).toBe("instagram");
   });
 });
 

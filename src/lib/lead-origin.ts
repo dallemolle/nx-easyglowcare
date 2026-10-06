@@ -15,10 +15,24 @@ export const ORIGIN_PARAMS = [
 
 type OriginParam = (typeof ORIGIN_PARAMS)[number];
 
+// Caracteres de controle (C0 e DEL): é justamente o que se quer recusar.
+const CONTROL_CHAR = /[\u0000-\u001f\u007f]/;
+const CONTROL_CHARS = /[\u0000-\u001f\u007f]/g;
+
+/**
+ * Valor aceito como origem: sem caracteres de controle e com UTF-16 bem formado. O Postgres
+ * recusa `\u0000` e surrogate solto em `jsonb` (`pending_signup`), o que quebraria o cadastro.
+ */
+function isCleanValue(value: string): boolean {
+  return value.isWellFormed() && !CONTROL_CHAR.test(value);
+}
+
+const originValueSchema = z.string().refine(isCleanValue);
+
 export const leadOriginParamsSchema = z.object(
-  Object.fromEntries(ORIGIN_PARAMS.map((key) => [key, z.string().optional()])) as Record<
+  Object.fromEntries(ORIGIN_PARAMS.map((key) => [key, originValueSchema.optional()])) as Record<
     OriginParam,
-    z.ZodOptional<z.ZodString>
+    z.ZodOptional<typeof originValueSchema>
   >,
 );
 
@@ -49,23 +63,38 @@ export function originCookieFor(
 
   const params: LeadOriginParams = {};
   for (const key of ORIGIN_PARAMS) {
-    const value = searchParams.get(key);
-    if (value) params[key] = value.slice(0, MAX_VALUE_LENGTH);
+    // Corta por ponto de código (não por unidade UTF-16) para não partir um emoji ao meio.
+    const value = Array.from((searchParams.get(key) ?? "").replace(CONTROL_CHARS, ""))
+      .slice(0, MAX_VALUE_LENGTH)
+      .join("");
+    if (value && isCleanValue(value)) params[key] = value;
   }
   if (Object.keys(params).length === 0) return null;
 
   return { path: `/${slug}`, value: JSON.stringify(params) };
 }
 
-/** Lê o cookie de origem. Não é assinado (vem do visitante): qualquer coisa inválida vira `{}`. */
+/**
+ * Lê o cookie de origem. Não é assinado (vem do visitante): JSON inválido ou que não é objeto
+ * vira `{}`, e cada chave inválida (não texto, caractere de controle, UTF-16 malformado) é
+ * descartada sozinha, sem perder as outras.
+ */
 export function parseOriginCookie(value: string | undefined): LeadOriginParams {
   if (!value) return {};
+  let parsed: unknown;
   try {
-    const parsed = leadOriginParamsSchema.safeParse(JSON.parse(value));
-    return parsed.success ? parsed.data : {};
+    parsed = JSON.parse(value);
   } catch {
     return {};
   }
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return {};
+
+  const params: LeadOriginParams = {};
+  for (const key of ORIGIN_PARAMS) {
+    const result = originValueSchema.safeParse((parsed as Record<string, unknown>)[key]);
+    if (result.success) params[key] = result.data;
+  }
+  return params;
 }
 
 /** Origem gravada em `people.source` (spec 4.3, na ordem). */
