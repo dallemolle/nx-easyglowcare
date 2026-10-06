@@ -34,8 +34,8 @@ pnpm build
 ## Equipe e login
 
 O painel da equipe fica em `/admin` (login em `/admin/login`). A tela `/admin/equipe`, onde o dono
-cadastra e gerencia a equipe, só abre para o papel dono. A área do cliente (`/minha-conta`) ainda é
-um espaço reservado.
+cadastra e gerencia a equipe, só abre para o papel dono. A área do cliente fica dentro do endereço da
+clínica: `/<slug>/entrar` e `/<slug>/minha-conta` (veja "Testar o cadastro de cliente").
 
 O `pnpm db:seed` cria estes usuários de exemplo (só para desenvolvimento e staging):
 
@@ -61,6 +61,18 @@ testes, ele refaz o seed no banco **local** de desenvolvimento com uma senha fix
 tabela `login_attempts`; por isso, depois dele, a senha do seed deixa de ser a do seu `.env.local`
 (rode `pnpm db:seed` de novo para voltar a ela). Ele se recusa a rodar se `DATABASE_URL` ou
 `DATABASE_URL_UNPOOLED` não apontarem para o banco local.
+
+## Testar o cadastro de cliente
+
+O cliente entra em `/<slug>/entrar` (CPF, cadastro e código por WhatsApp ou SMS) e cai em
+`/<slug>/minha-conta`. Sem provedor real, o código chega assim:
+
+- **Local:** ponha `OTP_TEST_PHONES=11900000001` no `.env.local`. Esse celular sempre recebe o
+  código `000000`. Para qualquer outro número, o provedor `console` imprime o código no terminal
+  (só fora de produção).
+- **Staging:** cadastre `OTP_TEST_PHONES` **só** no ambiente Preview da Vercel. Com ela em
+  Production, o build falha de propósito.
+- **Testes de navegador:** `pnpm test:e2e` precisa de `OTP_TEST_PHONES=11900000001` no `.env.local`.
 
 ## Instalar o app
 

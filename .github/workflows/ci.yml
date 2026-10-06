@@ -71,6 +71,7 @@ jobs:
           MESSAGING_PROVIDER=console
           PAYMENT_PROVIDER=mock
           SIGNATURE_PROVIDER=internal
+          OTP_TEST_PHONES=11900000001
           EOF
 
       - run: pnpm lint

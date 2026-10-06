@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+import { ORIGIN_COOKIE, originCookieFor } from "@/lib/lead-origin";
 import { buildCsp } from "@/lib/security/csp";
+
+const ORIGIN_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 
 // Nome do cookie de sessão (= `SESSION_COOKIE` em src/server/auth/session.ts). Duplicado de
 // propósito: o proxy não importa módulos de servidor (banco, sessão).
@@ -45,6 +48,21 @@ export function proxy(request: NextRequest) {
 
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set("Content-Security-Policy", csp);
+
+  const origin = originCookieFor(
+    pathname,
+    request.nextUrl.searchParams,
+    request.cookies.has(ORIGIN_COOKIE),
+  );
+  if (origin) {
+    response.cookies.set(ORIGIN_COOKIE, origin.value, {
+      path: origin.path,
+      maxAge: ORIGIN_MAX_AGE_SECONDS,
+      httpOnly: true,
+      sameSite: "lax",
+      secure: protocol === "https:",
+    });
+  }
   return response;
 }
 

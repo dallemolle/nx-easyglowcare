@@ -29,6 +29,13 @@
       "when": 1790964199236,
       "tag": "0003_outbox_audit",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791240212091,
+      "tag": "0004_people_entry",
+      "breakpoints": true
     }
   ]
 }

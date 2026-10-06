@@ -52,4 +52,55 @@ describe("getEnv", () => {
         .SESSION_SECRET,
     ).toHaveLength(32);
   });
+
+  it("OTP_TEST_PHONES é ausente por padrão", () => {
+    expect(getEnv(base).OTP_TEST_PHONES).toEqual([]);
+  });
+
+  it("OTP_TEST_PHONES vazio conta como ausente", () => {
+    expect(getEnv({ ...base, OTP_TEST_PHONES: "" }).OTP_TEST_PHONES).toEqual([]);
+  });
+
+  it("OTP_TEST_PHONES aceita celulares válidos separados por vírgula", () => {
+    expect(
+      getEnv({ ...base, OTP_TEST_PHONES: "11900000001, 11900000002" }).OTP_TEST_PHONES,
+    ).toEqual(["11900000001", "11900000002"]);
+  });
+
+  it("OTP_TEST_PHONES rejeita celular inválido", () => {
+    expect(() => getEnv({ ...base, OTP_TEST_PHONES: "1190000" })).toThrow(/OTP_TEST_PHONES/);
+  });
+
+  it("OTP_TEST_PHONES não expõe o número inválido na mensagem", () => {
+    expect(() => getEnv({ ...base, OTP_TEST_PHONES: "1190000" })).toThrow(
+      expect.objectContaining({ message: expect.not.stringContaining("1190000") }),
+    );
+  });
+
+  it("OTP_TEST_PHONES é aceito em preview", () => {
+    expect(
+      getEnv({ ...base, VERCEL_ENV: "preview", OTP_TEST_PHONES: "11900000001" })
+        .OTP_TEST_PHONES,
+    ).toHaveLength(1);
+  });
+
+  it("OTP_TEST_PHONES é proibido em produção", () => {
+    expect(() =>
+      getEnv({ ...base, VERCEL_ENV: "production", OTP_TEST_PHONES: "11900000001" }),
+    ).toThrow(/OTP_TEST_PHONES.*produção/);
+  });
+
+  it("OTP_TEST_PHONES é permitido vazio em produção", () => {
+    expect(getEnv({ ...base, VERCEL_ENV: "production" }).OTP_TEST_PHONES).toEqual([]);
+  });
+
+  it("VERCEL_ENV é opcional", () => {
+    expect(getEnv(base).VERCEL_ENV).toBeUndefined();
+  });
+
+  it("VERCEL_ENV aceita production, preview e development", () => {
+    expect(getEnv({ ...base, VERCEL_ENV: "production" }).VERCEL_ENV).toBe("production");
+    expect(getEnv({ ...base, VERCEL_ENV: "preview" }).VERCEL_ENV).toBe("preview");
+    expect(getEnv({ ...base, VERCEL_ENV: "development" }).VERCEL_ENV).toBe("development");
+  });
 });

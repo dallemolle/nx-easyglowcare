@@ -22,7 +22,7 @@ Legenda usada em todos os itens:
 - [x] Neon em `aws-sa-east-1` conectado à Vercel: um projeto de produção (Production) e um de staging (todos os Previews). Sem branch de banco por Preview; não alterar sem pedido do dono (ver CLAUDE.md, seção 2)
 - [x] Functions na região `gru1`
 - [x] Schema multi-tenant (`tenants`, `locations`), helper de escopo por tenant
-- [x] Rotas `/[slug]` (site público), `/minha-conta` (cliente), `/admin` (clínica)
+- [x] Rotas `/[slug]` (site público), `/[slug]/entrar` e `/[slug]/minha-conta` (cliente, dentro do endereço da clínica), `/admin` (clínica)
 - [x] Login da equipe (e-mail + senha com Argon2, ou link mágico quando houver e-mail)
 - [x] Permissões: dono, recepção, profissional
 - [x] Adapters com implementação `console`/`mock`: mensagens, pagamento, assinatura
@@ -35,12 +35,12 @@ Legenda usada em todos os itens:
 ### Fluxo de entrada (diferencial)
 | Item | Tag | Observação |
 |---|---|---|
-| Pré-cadastro sem senha (nome, CPF, telefone) → lead + catálogo liberado | [VN] | |
-| Validação e máscara de CPF, checagem de duplicidade ("continua de onde parou") | [VN] | Validação só por dígito verificador. Consulta de situação na Receita = [EXT] |
-| Consentimento LGPD com data, hora, IP, versão do texto | [VN] | |
-| Origem do lead (Instagram, indicação, Google, UTM) | [VN] | Captura de `utm_*` e `ref` em cookie na 1ª visita |
-| Conversão lead → cliente no 1º agendamento/pagamento/atendimento | [VN] | |
-| Código de verificação por WhatsApp/SMS (também serve de login) | [VN+A] | Dev: código aparece no console. Produção: provedor WhatsApp/SMS |
+| Pré-cadastro sem senha (nome, CPF, telefone) → lead + catálogo liberado | [VN] | Feito na Etapa 1 |
+| Validação e máscara de CPF, checagem de duplicidade ("continua de onde parou") | [VN] | Feito na Etapa 1. Validação só por dígito verificador. Consulta de situação na Receita = [EXT] |
+| Consentimento LGPD com data, hora, IP, versão do texto | [VN] | Feito na Etapa 1 |
+| Origem do lead (Instagram, indicação, Google, UTM) | [VN] | Feito na Etapa 1. Captura de `utm_*` e `ref` em cookie na 1ª visita |
+| Conversão lead → cliente no 1º agendamento/pagamento/atendimento | [VN] | Regra pronta; disparada na Etapa 3 |
+| Código de verificação por WhatsApp/SMS (também serve de login) | [VN+A] | Feito na Etapa 1: implementação de desenvolvimento; provedor real pendente. Dev: código aparece no console. Produção: provedor WhatsApp/SMS. **Não promover para `main` antes do provedor real:** em produção o `console` esconde o código e os telefones de teste são proibidos, então "Entrar" vira beco sem saída |
 
 ### Catálogo
 | Item | Tag |
@@ -84,7 +84,7 @@ Legenda usada em todos os itens:
 | Cadastro de serviços, preços, duração, profissionais habilitados, salas, equipamentos | [VN] |
 | Lista de leads e clientes com busca | [VN] |
 
-**Para colocar o MVP em produção você precisa de:** Vercel Pro, um provedor de WhatsApp (ou SMS) para o código e os lembretes, e um provedor de e-mail. Todo o resto já roda com o que você tem.
+**Para colocar o MVP em produção você precisa de:** Vercel Pro, um provedor de WhatsApp (ou SMS) para o código e os lembretes, e um provedor de e-mail. Todo o resto já roda com o que você tem. **O fluxo de entrada (Etapa 1) só pode ir para `main` depois que o provedor real de WhatsApp/SMS estiver ligado:** sem ele, ninguém recebe o código em produção.
 
 ## 3. Versão 2
 
@@ -171,7 +171,7 @@ Legenda usada em todos os itens:
 | Política de bloqueio de login | Rever o bloqueio (limite por e-mail+IP com teto maior por e-mail) e criar comando de desbloqueio | Antes de clínicas reais | Hoje 5 senhas erradas travam um e-mail conhecido por 15 min, de qualquer IP: qualquer pessoa pode manter um dono travado |
 | Headers de segurança e CSP | Configurar no `next.config` (X-Frame-Options, nosniff, Referrer-Policy e CSP) | Feito no 0D | CSP com nonce por requisição (proxy.ts) e cabeçalhos fixos (next.config) |
 | Migrations automáticas | Feito no 0D: aplicadas no build da Vercel em staging e produção | Feito | Toda migration precisa ser compatível com a versão anterior no ar |
-| Caminhos reservados | Impedir clínicas com slug igual a rotas do app (admin, api, icons, minha-conta…) | Antes de clínicas reais | Hoje um slug "icons" perderia /icons/<arquivo> |
+| Caminhos reservados | Impedir clínicas com slug igual a rotas do app (admin, api, icons…) | Antes de clínicas reais | Hoje um slug "icons" perderia /icons/<arquivo> |
 | Transações no `tenantScope` | Executar operações compostas em transação | Antes de clínicas reais | Regra do último dono e vínculo de profissional sem condição de corrida |
 | Helper único para Server Actions autenticadas | `requireStaff` + renovação da sessão num só lugar | MVP | Antes de o MVP criar dezenas de actions |
 | Robustez da fila antes dos lembretes | Isolar o erro por mensagem, limite de tempo por envio e por execução no processador; erro sem dado pessoal ao enfileirar | Antes da Etapa 4 | Hoje um erro de banco no meio do lote interrompe a execução, e um provedor lento pode estourar os 60 s |
@@ -225,7 +225,7 @@ Implemente o outbox de mensagens: templates, agendamento de confirmação, lembr
 
 **Etapa 5 — Área do cliente e admin básico**
 ```
-Implemente /minha-conta (próximos, histórico, favoritos, agendar de novo, avaliação) e a agenda visual do admin por dia/semana/profissional com arrastar e soltar, respeitando as permissões dos perfis.
+Implemente /<slug>/minha-conta (próximos, histórico, favoritos, agendar de novo, avaliação) e a agenda visual do admin por dia/semana/profissional com arrastar e soltar, respeitando as permissões dos perfis.
 ```
 
 Depois do MVP, siga a mesma lógica para cada bloco da V2 e V3, sempre pedindo o plano antes.

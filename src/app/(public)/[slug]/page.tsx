@@ -2,11 +2,13 @@ import { eq } from "drizzle-orm";
 import { Clock, MapPin } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDuration, formatServicePrice } from "@/lib/format";
+import { canonicalTenantPath } from "@/lib/tenant-path";
+import { getCurrentClient } from "@/server/auth/current-client";
 import { locations } from "@/server/db/schema";
 import { getPublicCatalog } from "@/server/services/catalog";
 import { getTenantBySlug } from "@/server/services/tenants";
@@ -16,17 +18,21 @@ export async function generateMetadata({ params }: PageProps<"/[slug]">): Promis
   return found ? { title: { absolute: found.tenant.name } } : {};
 }
 
-export default async function TenantPage({ params }: PageProps<"/[slug]">) {
+export default async function TenantPage({ params, searchParams }: PageProps<"/[slug]">) {
   // Catálogo lido do banco a cada request nesta fase.
   await connection();
 
-  const found = await getTenantBySlug((await params).slug);
+  const { slug } = await params;
+  const found = await getTenantBySlug(slug);
   if (!found) notFound();
+  const canonical = canonicalTenantPath(slug, found.tenant.slug, "", await searchParams);
+  if (canonical) redirect(canonical);
 
   const { tenant, scope } = found;
-  const [catalog, [location]] = await Promise.all([
+  const [catalog, [location], client] = await Promise.all([
     getPublicCatalog(scope),
     scope.select(locations, eq(locations.isActive, true)),
+    getCurrentClient(slug),
   ]);
 
   return (
@@ -39,12 +45,17 @@ export default async function TenantPage({ params }: PageProps<"/[slug]">) {
             {location.address}
           </p>
         )}
-        <Link
-          href={`/${tenant.slug}/instalar`}
-          className="self-start text-sm text-muted-foreground underline underline-offset-4"
-        >
-          Instalar app
-        </Link>
+        <nav className="flex items-center gap-4 text-sm">
+          <Link
+            href={`/${tenant.slug}/${client ? "minha-conta" : "entrar"}`}
+            className="font-medium underline underline-offset-4"
+          >
+            {client ? "Minha conta" : "Entrar"}
+          </Link>
+          <Link href={`/${tenant.slug}/instalar`} className="text-muted-foreground underline underline-offset-4">
+            Instalar app
+          </Link>
+        </nav>
       </header>
 
       {catalog.length === 0 ? (

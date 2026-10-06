@@ -1,13 +1,11 @@
 import "server-only";
 
-import { createHash, randomBytes } from "node:crypto";
-
 import { and, eq, isNull, ne } from "drizzle-orm";
-import { jwtVerify, SignJWT } from "jose";
 
-import { getEnv } from "@/lib/env";
 import { sessions, staffUsers, tenants, type StaffUser, type Tenant } from "@/server/db/schema";
 import type { AnyPgDatabase, TenantScope } from "@/server/db/tenant-scope";
+
+import { generateToken, hashToken, signPayload, verifyPayload } from "./token";
 
 export const SESSION_COOKIE = "egc_session";
 export const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -23,14 +21,6 @@ export type StaffSession = {
   shouldRenew: boolean;
 };
 
-function secretKey(): Uint8Array {
-  return new TextEncoder().encode(getEnv().SESSION_SECRET);
-}
-
-function hashToken(token: string): string {
-  return createHash("sha256").update(token).digest("hex");
-}
-
 /** Cria a sessão no banco (guardando só o hash do token) e devolve o cookie assinado. */
 export async function createSession(
   db: AnyPgDatabase,
@@ -38,7 +28,7 @@ export async function createSession(
   meta: SessionMeta,
   now: Date = new Date(),
 ): Promise<{ cookieValue: string; expiresAt: Date }> {
-  const token = randomBytes(32).toString("base64url");
+  const token = generateToken();
   const tokenHash = hashToken(token);
   const expiresAt = new Date(now.getTime() + SESSION_TTL_MS);
 
@@ -51,9 +41,7 @@ export async function createSession(
     userAgent: meta.userAgent,
   });
 
-  const cookieValue = await new SignJWT({ t: token })
-    .setProtectedHeader({ alg: "HS256" })
-    .sign(secretKey());
+  const cookieValue = await signPayload({ t: token });
 
   return { cookieValue, expiresAt };
 }
@@ -72,17 +60,8 @@ export async function validateSession(
 ): Promise<StaffSession | null> {
   if (!cookieValue) return null;
 
-  // Fora do try: um erro de configuração (ex.: SESSION_SECRET inválido) deve propagar,
-  // não ser confundido com uma falha de verificação do JWT e virar "sessão inválida".
-  const key = secretKey();
-
-  let token: unknown;
-  try {
-    const { payload } = await jwtVerify(cookieValue, key, { algorithms: ["HS256"] });
-    token = payload.t;
-  } catch {
-    return null;
-  }
+  const payload = await verifyPayload(cookieValue);
+  const token = payload?.t;
   if (typeof token !== "string") return null;
 
   const tokenHash = hashToken(token);
