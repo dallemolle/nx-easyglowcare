@@ -40,7 +40,7 @@ Legenda usada em todos os itens:
 | Consentimento LGPD com data, hora, IP, versão do texto | [VN] | Feito na Etapa 1 |
 | Origem do lead (Instagram, indicação, Google, UTM) | [VN] | Feito na Etapa 1. Captura de `utm_*` e `ref` em cookie na 1ª visita |
 | Conversão lead → cliente no 1º agendamento/pagamento/atendimento | [VN] | Regra pronta; disparada na Etapa 3 |
-| Código de verificação por WhatsApp/SMS (também serve de login) | [VN+A] | Feito na Etapa 1: implementação de desenvolvimento; provedor real pendente. Dev: código aparece no console. Produção: provedor WhatsApp/SMS |
+| Código de verificação por WhatsApp/SMS (também serve de login) | [VN+A] | Feito na Etapa 1: implementação de desenvolvimento; provedor real pendente. Dev: código aparece no console. Produção: provedor WhatsApp/SMS. **Não promover para `main` antes do provedor real:** em produção o `console` esconde o código e os telefones de teste são proibidos, então "Entrar" vira beco sem saída |
 
 ### Catálogo
 | Item | Tag |
@@ -84,7 +84,7 @@ Legenda usada em todos os itens:
 | Cadastro de serviços, preços, duração, profissionais habilitados, salas, equipamentos | [VN] |
 | Lista de leads e clientes com busca | [VN] |
 
-**Para colocar o MVP em produção você precisa de:** Vercel Pro, um provedor de WhatsApp (ou SMS) para o código e os lembretes, e um provedor de e-mail. Todo o resto já roda com o que você tem.
+**Para colocar o MVP em produção você precisa de:** Vercel Pro, um provedor de WhatsApp (ou SMS) para o código e os lembretes, e um provedor de e-mail. Todo o resto já roda com o que você tem. **O fluxo de entrada (Etapa 1) só pode ir para `main` depois que o provedor real de WhatsApp/SMS estiver ligado:** sem ele, ninguém recebe o código em produção.
 
 ## 3. Versão 2
 

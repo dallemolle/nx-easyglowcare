@@ -120,6 +120,7 @@ MESSAGING_PROVIDER=console
 OTP_TEST_PHONES=              # só fora de produção
 PAYMENT_PROVIDER=mock
 SIGNATURE_PROVIDER=internal
+VERCEL_ENV=                   # a Vercel define sozinha (production | preview | development)
 ```
 Mantenha `.env.example` sempre atualizado.
 

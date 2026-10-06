@@ -9,8 +9,9 @@ A revisão final classificou todos como "pode esperar".
   também cobre `/easyglowcare-sp`, então a página de outra clínica abriria dentro do app instalado da
   primeira. Resolver junto com os caminhos reservados: o ROADMAP já tem a linha "Caminhos
   reservados".
-- **Slugs iguais a rotas do app.** `icons`, `admin`, `api` e `minha-conta` precisam ser recusados
-  como slug de clínica (mesma linha do ROADMAP).
+- **Slugs iguais a rotas do app.** `icons`, `admin` e `api` precisam ser recusados como slug de
+  clínica (mesma linha do ROADMAP). `minha-conta` saiu da lista: na Etapa 1 a área do cliente
+  passou para `/<slug>/minha-conta` e a rota na raiz deixou de existir.
 
 ## Deploy e migrations
 
