@@ -1,19 +1,27 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { maskCpf } from "@/lib/br/cpf";
 import { maskPhone } from "@/lib/br/phone";
+import { canonicalTenantPath } from "@/lib/tenant-path";
 import { requireClient } from "@/server/auth/current-client";
+import { getTenantBySlug } from "@/server/services/tenants";
 
 import { signOutAction } from "./actions";
 import { SessionRefresher } from "./session-refresher";
 
 export const metadata: Metadata = { title: "Minha conta" };
 
-export default async function MinhaContaPage({ params }: PageProps<"/[slug]/minha-conta">) {
+export default async function MinhaContaPage({ params, searchParams }: PageProps<"/[slug]/minha-conta">) {
   const { slug } = await params;
+  const found = await getTenantBySlug(slug);
+  if (!found) notFound();
+  const canonical = canonicalTenantPath(slug, found.tenant.slug, "/minha-conta", await searchParams);
+  if (canonical) redirect(canonical);
+
   const { person, tenant, shouldRenew } = await requireClient(slug, `/${slug}/minha-conta`);
   const firstName = person.name.trim().split(/\s+/)[0];
 

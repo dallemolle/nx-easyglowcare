@@ -15,6 +15,7 @@ import { signupSchema, startEntrySchema, verifyCodeSchema, type OtpChannel } fro
 import type { EntryStepResult } from "@/server/auth/current-client";
 
 import { resendCodeAction, startEntryAction, startSignupAction, verifyCodeAction } from "./actions";
+import { ClinicContact } from "./clinic-contact";
 
 type CodeInfo = { maskedPhone: string; channel: OtpChannel; resendAvailableAt: string };
 
@@ -332,19 +333,7 @@ function CodeStep({ slug, voltar, clinicPhone, info, message, onResult, onError,
             Você pode pedir um novo código em {secondsLeft} s.
           </p>
         )}
-        {clinicPhone && (
-          <p className="mt-2 text-muted-foreground">
-            Não reconhece esse número?{" "}
-            <a
-              href={`https://wa.me/${clinicPhone}`}
-              target="_blank"
-              rel="noopener"
-              className="text-foreground underline underline-offset-4"
-            >
-              Fale com a clínica
-            </a>
-          </p>
-        )}
+        <ClinicContact clinicPhone={clinicPhone} />
         <Button type="button" variant="link" className="px-0" onClick={() => onRestart()}>
           Trocar CPF
         </Button>

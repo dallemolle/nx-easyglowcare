@@ -5,6 +5,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { whatsAppNumber } from "@/lib/br/phone";
 import { safeReturnPath } from "@/lib/return-path";
+import { canonicalTenantPath } from "@/lib/tenant-path";
 import { getCurrentClient } from "@/server/auth/current-client";
 import { locations } from "@/server/db/schema";
 import { getTenantBySlug } from "@/server/services/tenants";
@@ -19,8 +20,11 @@ export default async function EntrarPage({ params, searchParams }: PageProps<"/[
   if (!found) notFound();
   const { tenant, scope } = found;
 
-  const raw = (await searchParams).voltar;
-  const voltar = typeof raw === "string" ? raw : null;
+  const search = await searchParams;
+  const canonical = canonicalTenantPath(slug, tenant.slug, "/entrar", search);
+  if (canonical) redirect(canonical);
+
+  const voltar = typeof search.voltar === "string" ? search.voltar : null;
 
   if (await getCurrentClient(slug)) redirect(safeReturnPath(tenant.slug, voltar));
 

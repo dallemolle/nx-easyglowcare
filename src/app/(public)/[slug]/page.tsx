@@ -2,11 +2,12 @@ import { eq } from "drizzle-orm";
 import { Clock, MapPin } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDuration, formatServicePrice } from "@/lib/format";
+import { canonicalTenantPath } from "@/lib/tenant-path";
 import { getCurrentClient } from "@/server/auth/current-client";
 import { locations } from "@/server/db/schema";
 import { getPublicCatalog } from "@/server/services/catalog";
@@ -17,13 +18,15 @@ export async function generateMetadata({ params }: PageProps<"/[slug]">): Promis
   return found ? { title: { absolute: found.tenant.name } } : {};
 }
 
-export default async function TenantPage({ params }: PageProps<"/[slug]">) {
+export default async function TenantPage({ params, searchParams }: PageProps<"/[slug]">) {
   // Catálogo lido do banco a cada request nesta fase.
   await connection();
 
   const { slug } = await params;
   const found = await getTenantBySlug(slug);
   if (!found) notFound();
+  const canonical = canonicalTenantPath(slug, found.tenant.slug, "", await searchParams);
+  if (canonical) redirect(canonical);
 
   const { tenant, scope } = found;
   const [catalog, [location], client] = await Promise.all([
