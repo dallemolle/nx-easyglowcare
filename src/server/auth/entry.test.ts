@@ -182,6 +182,20 @@ describe("pessoa existente", () => {
     expect(await db.select().from(personSessions)).toHaveLength(1);
   });
 
+  it("telefone trocado entre o envio e a verificação: código não vale e não abre sessão", async () => {
+    const person = await insertPerson();
+    const sent = await startEntry(db, tenant.id, { cpf: CPF }, META, deps, T0);
+    if (sent.kind !== "code-sent") throw new Error("inesperado");
+    await db.update(people).set({ phone: "31987650000" }).where(eq(people.id, person.id));
+
+    const result = await verifyCode(db, tenant.id, sent.challengeId, { code: lastCode() }, META, at(MINUTE));
+
+    expect(result).toEqual({ kind: "error", error: EXPIRED, restart: true });
+    expect(await db.select().from(personSessions)).toHaveLength(0);
+    const [row] = await db.select().from(people);
+    expect(row.phoneVerifiedAt).toBeNull();
+  });
+
   it("startSignup com CPF já cadastrado age como login (código para o telefone cadastrado)", async () => {
     const person = await insertPerson();
 

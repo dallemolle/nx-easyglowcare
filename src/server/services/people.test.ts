@@ -117,10 +117,24 @@ describe("markPhoneVerified", () => {
     });
     expect(person.phoneVerifiedAt).toBeNull();
 
-    await markPhoneVerified(tenantScope(db, tenantA.id), person.id, NOW);
+    expect(await markPhoneVerified(tenantScope(db, tenantA.id), person.id, PHONE, NOW)).toBe(true);
 
     const [row] = await db.select().from(people).where(eq(people.id, person.id));
     expect(row.phoneVerifiedAt).toEqual(NOW);
+  });
+
+  it("não marca quando o telefone cadastrado já é outro", async () => {
+    const [person] = await tenantScope(db, tenantA.id).insert(people, {
+      name: "Ana",
+      cpf: CPF,
+      phone: PHONE,
+      source: "direct",
+    });
+
+    expect(await markPhoneVerified(tenantScope(db, tenantA.id), person.id, "21987651234", NOW)).toBe(false);
+
+    const [row] = await db.select().from(people).where(eq(people.id, person.id));
+    expect(row.phoneVerifiedAt).toBeNull();
   });
 });
 

@@ -320,7 +320,9 @@ export async function verifyCode(
   const scope = tenantScope(db, tenantId);
 
   if (consumed.purpose === "login" && consumed.personId) {
-    await markPhoneVerified(scope, consumed.personId, now);
+    // Só entra se o telefone cadastrado ainda for o que recebeu o código.
+    const verified = await markPhoneVerified(scope, consumed.personId, consumed.phone, now);
+    if (!verified) return fail(EXPIRED_ERROR, true);
     return signIn(db, { id: consumed.personId, tenantId }, meta, now);
   }
 
@@ -334,7 +336,7 @@ export async function verifyCode(
   const existing = await findPersonByCpf(scope, pending.cpf);
   if (!existing || existing.phone !== pending.phone) return fail(CPF_TAKEN_ERROR, true);
 
-  await markPhoneVerified(scope, existing.id, now);
+  if (!(await markPhoneVerified(scope, existing.id, pending.phone, now))) return fail(CPF_TAKEN_ERROR, true);
   return signIn(db, existing, meta, now);
 }
 

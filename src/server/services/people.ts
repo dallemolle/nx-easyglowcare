@@ -64,12 +64,18 @@ export async function createLeadFromSignup(
   }
 }
 
+/**
+ * Marca o telefone como verificado só se o telefone cadastrado ainda for o que recebeu o
+ * código (a recepção pode tê-lo trocado depois do envio). Devolve `false` quando não marcou.
+ */
 export async function markPhoneVerified(
   scope: TenantScope,
   personId: string,
+  phone: string,
   now: Date = new Date(),
-): Promise<void> {
-  await scope.update(people, { phoneVerifiedAt: now }, eq(people.id, personId));
+): Promise<boolean> {
+  const rows = await scope.update(people, { phoneVerifiedAt: now }, eq(people.id, personId), eq(people.phone, phone));
+  return rows.length > 0;
 }
 
 /**
