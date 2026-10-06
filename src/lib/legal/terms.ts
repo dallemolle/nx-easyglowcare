@@ -24,7 +24,7 @@ export function termsOfUse(clinicName: string): LegalSection[] {
       title: "Cadastro e código de acesso",
       paragraphs: [
         "Para se cadastrar, pedimos seu nome, seu CPF e o número do seu celular. Eles devem ser seus e estar corretos.",
-        "Não usamos senha. Para entrar, enviamos um código por WhatsApp para o celular cadastrado. O código é de uso pessoal: não compartilhe com ninguém, nem com quem diga ser da clínica.",
+        "Não usamos senha. Para entrar, enviamos um código por WhatsApp ou SMS para o celular cadastrado. O código é de uso pessoal: não compartilhe com ninguém, nem com quem diga ser da clínica.",
       ],
     },
     {

@@ -17,6 +17,11 @@ describe("textos legais", () => {
     expect(text).toContain(CLINIC);
   });
 
+  it("o código de acesso vai por WhatsApp ou SMS", () => {
+    const section = termsOfUse(CLINIC).find((s) => s.title === "Cadastro e código de acesso");
+    expect(section?.paragraphs.join(" ")).toContain("por WhatsApp ou SMS");
+  });
+
   it.each([
     ["termos de uso", termsOfUse],
     ["política de privacidade", privacyPolicy],

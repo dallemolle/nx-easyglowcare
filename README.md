@@ -64,7 +64,7 @@ tabela `login_attempts`; por isso, depois dele, a senha do seed deixa de ser a d
 
 ## Testar o cadastro de cliente
 
-O cliente entra em `/<slug>/entrar` (CPF, cadastro e código por WhatsApp) e cai em
+O cliente entra em `/<slug>/entrar` (CPF, cadastro e código por WhatsApp ou SMS) e cai em
 `/<slug>/minha-conta`. Sem provedor real, o código chega assim:
 
 - **Local:** ponha `OTP_TEST_PHONES=11900000001` no `.env.local`. Esse celular sempre recebe o
