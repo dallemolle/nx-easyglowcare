@@ -20,6 +20,10 @@ describe("safeReturnPath", () => {
       "/easyglowcare/../admin",
       "/easyglowcarex",
       "/easyglowcare/entrar",
+      "/easyglowcare/%2e%2e/admin",
+      "/easyglowcare/%2E%2E/admin",
+      "/easyglowcare/%2fevil.com",
+      "/easyglowcare/minha-conta?x=%41",
     ]) {
       expect(safeReturnPath("easyglowcare", bad)).toBe("/easyglowcare/minha-conta");
     }
