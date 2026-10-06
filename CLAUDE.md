@@ -48,7 +48,7 @@ Não introduza outras bibliotecas grandes sem justificar no PR.
    ```
    src/
      app/(public)/[slug]/...      # site público do negócio: catálogo, agendar
-     app/(cliente)/minha-conta/... # área do cliente
+     app/(public)/[slug]/entrar, minha-conta  # entrada e área do cliente (dentro do endereço da clínica)
      app/(admin)/admin/...         # painel da clínica
      app/api/...                   # webhooks, cron, endpoints
      server/db/schema/*.ts         # schema Drizzle por domínio
@@ -117,6 +117,7 @@ BLOB_READ_WRITE_TOKEN=        # só fora da Vercel; na Vercel usar OIDC
 NEXT_PUBLIC_APP_URL=
 VAPID_PUBLIC_KEY= / VAPID_PRIVATE_KEY=
 MESSAGING_PROVIDER=console
+OTP_TEST_PHONES=              # só fora de produção
 PAYMENT_PROVIDER=mock
 SIGNATURE_PROVIDER=internal
 ```
