@@ -77,11 +77,6 @@ test("logado, /admin/login redireciona para /admin", async ({ page }) => {
   await expect(page).toHaveURL(/\/admin$/);
 });
 
-test("/minha-conta mostra a página reservada", async ({ page }) => {
-  await page.goto("/minha-conta");
-  await expect(page.getByText("Em breve")).toBeVisible();
-});
-
 const RECEPTION_EMAIL = "recepcao@easyglowcare.test";
 const NEW_PERSON_NAME = "Pessoa E2E";
 const NEW_PERSON_PASSWORD = "e2e-nova-senha-2";

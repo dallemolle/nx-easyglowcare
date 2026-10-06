@@ -20,6 +20,15 @@ export function formatPhone(value: string): string {
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
 }
 
+/**
+ * Número para link do WhatsApp (`https://wa.me/<número>`): telefone com DDD (10 ou 11 dígitos)
+ * ganha o 55 do Brasil. Ausente ou com outra quantidade de dígitos: `null` (link escondido).
+ */
+export function whatsAppNumber(phone: string | null | undefined): string | null {
+  const d = onlyDigits(phone ?? "");
+  return d.length === 10 || d.length === 11 ? `55${d}` : null;
+}
+
 /** Telefone mascarado para exibição: `(11) *****-1234`. */
 export function maskPhone(digits: string): string {
   const d = onlyDigits(digits);

@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 // Services recebem um TenantScope, nunca o `db`. Amplie esta lista explicitamente quando
 // um novo módulo precisar do client (ex.: sessão no 0B, jobs de cron no 0C).
 const ALLOWED = [
+  "src/server/auth/current-client.ts",
   "src/server/auth/current.ts",
   "src/server/jobs/run.ts",
   "src/server/services/tenants.ts",

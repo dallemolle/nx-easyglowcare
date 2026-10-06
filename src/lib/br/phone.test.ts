@@ -1,5 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { formatPhone, isValidMobile, maskPhone, normalizePhone } from "./phone";
+import { formatPhone, isValidMobile, maskPhone, normalizePhone, whatsAppNumber } from "./phone";
+
+describe("whatsAppNumber", () => {
+  it("prefixa 55 em telefone com DDD (10 ou 11 dígitos)", () => {
+    expect(whatsAppNumber("11999990000")).toBe("5511999990000");
+    expect(whatsAppNumber("(11) 3333-4444")).toBe("551133334444");
+  });
+
+  it("sem telefone ou com outra quantidade de dígitos: null", () => {
+    expect(whatsAppNumber(null)).toBeNull();
+    expect(whatsAppNumber(undefined)).toBeNull();
+    expect(whatsAppNumber("")).toBeNull();
+    expect(whatsAppNumber("3333-4444")).toBeNull();
+    expect(whatsAppNumber("+55 11 99999-0000")).toBeNull();
+  });
+});
 
 describe("phone", () => {
   it("valida celular com DDD", () => {
