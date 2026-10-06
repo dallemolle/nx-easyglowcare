@@ -15,7 +15,7 @@ import pg from "pg";
 
 import { assertLocalDatabase } from "../src/server/db/seed-guard";
 
-import { E2E_STAFF_PASSWORD } from "./constants";
+import { E2E_NEW_CPF, E2E_STAFF_PASSWORD, E2E_TEST_PHONE } from "./constants";
 
 /** Mensagem própria do e2e: a do seed ("Seed recusado... Use --force") não faz sentido aqui. */
 function assertLocalForE2e(label: string, url: string): void {
@@ -39,6 +39,14 @@ export default async function globalSetup(): Promise<void> {
     throw new Error("Defina DATABASE_URL e DATABASE_URL_UNPOOLED em .env.local antes de rodar o e2e.");
   }
 
+  const testPhones = (process.env.OTP_TEST_PHONES ?? "").split(",").map((phone) => phone.trim());
+  if (!testPhones.includes(E2E_TEST_PHONE)) {
+    throw new Error(
+      `Adicione OTP_TEST_PHONES=${E2E_TEST_PHONE} ao .env.local: o e2e de entrada usa esse celular ` +
+        "de teste (código fixo 000000) e não consegue entrar sem ele.",
+    );
+  }
+
   // Antes de qualquer coisa (seed, truncate): as duas urls precisam ser locais.
   assertLocalForE2e("DATABASE_URL_UNPOOLED (seed)", unpooledUrl);
   assertLocalForE2e("DATABASE_URL (app sob teste)", appUrl);
@@ -51,6 +59,12 @@ export default async function globalSetup(): Promise<void> {
   const pool = new pg.Pool({ connectionString: unpooledUrl, max: 1 });
   try {
     await pool.query("DELETE FROM login_attempts");
+    // Estado do e2e de entrada: a pessoa criada no cadastro e os envios de código (limites de
+    // 3 por celular e 10 por IP em 15 min) de execuções anteriores, do modo dev ou do prod.
+    await pool.query("DELETE FROM people WHERE cpf = $1", [E2E_NEW_CPF]);
+    await pool.query("DELETE FROM otp_codes WHERE phone = $1 OR ip IN ('127.0.0.1', '::1', 'unknown')", [
+      E2E_TEST_PHONE,
+    ]);
   } finally {
     await pool.end();
   }
