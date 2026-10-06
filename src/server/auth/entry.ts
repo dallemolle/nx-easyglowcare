@@ -23,6 +23,7 @@ import { createClientSession } from "./client-session";
 import {
   codeMatches,
   generateCode,
+  isIpAtLimit,
   OTP_MAX_ATTEMPTS,
   RESEND_COOLDOWN_MS,
   reserveChallenge,
@@ -160,7 +161,11 @@ function loginChallenge(tenantId: string, person: Person, meta: EntryMeta): Chal
   };
 }
 
-/** Passo do CPF: CPF cadastrado nesta clínica recebe o código no telefone cadastrado. */
+/**
+ * Passo do CPF: CPF cadastrado nesta clínica recebe o código no telefone cadastrado. Antes
+ * de procurar o CPF confere o limite do IP: no limite, todo CPF (cadastrado ou não) recebe a
+ * mesma mensagem, para que a busca não sirva de varredura (spec 6.7).
+ */
 export async function startEntry(
   db: AnyPgDatabase,
   tenantId: string,
@@ -173,6 +178,7 @@ export async function startEntry(
   if (!parsed.success) return invalidInput(parsed.error);
   const { cpf } = parsed.data;
 
+  if (await isIpAtLimit(db, meta.ip, now)) return fail(LIMIT_ERROR);
   const person = await findPersonByCpf(tenantScope(db, tenantId), cpf);
   if (!person) return { kind: "needs-signup", cpf };
 
@@ -197,6 +203,7 @@ export async function startSignup(
   if (!parsed.success) return invalidInput(parsed.error);
   const { cpf, name, phone, marketing } = parsed.data;
 
+  if (await isIpAtLimit(db, meta.ip, now)) return fail(LIMIT_ERROR);
   const existing = await findPersonByCpf(tenantScope(db, tenantId), cpf);
   if (existing) return issueChallenge(db, loginChallenge(tenantId, existing, meta), deps, now);
 

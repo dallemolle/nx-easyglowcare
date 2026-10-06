@@ -448,6 +448,73 @@ describe("limite de envio", () => {
   });
 });
 
+describe("limite por IP antes de procurar o CPF", () => {
+  // Envios do mesmo IP para telefones diferentes (o limite por telefone não entra), metade em
+  // outra clínica: o limite por IP conta entre clínicas.
+  async function sendsFromIp(total: number) {
+    for (let i = 0; i < total; i++) {
+      const tenantId = i % 2 === 0 ? tenant.id : otherTenant.id;
+      const input = { ...SIGNUP, phone: `(11) 98765-43${String(i).padStart(2, "0")}` };
+      const result = await startSignup(db, tenantId, input, {}, META, deps, at(i * MINUTE));
+      if (result.kind !== "code-sent") throw new Error(`esperava code-sent, veio ${JSON.stringify(result)}`);
+    }
+  }
+
+  it("com 10 envios em 15 min, todo CPF recebe a mesma mensagem de limite", async () => {
+    await sendsFromIp(10);
+    await insertPerson({ cpf: "11144477735" });
+    const rowsBefore = (await db.select().from(otpCodes)).length;
+
+    expect(await startEntry(db, tenant.id, { cpf: CPF }, META, deps, at(10 * MINUTE))).toEqual({
+      kind: "error",
+      error: LIMIT,
+      restart: false,
+    });
+    expect(await startEntry(db, tenant.id, { cpf: "11144477735" }, META, deps, at(10 * MINUTE))).toEqual({
+      kind: "error",
+      error: LIMIT,
+      restart: false,
+    });
+    // startSignup também procura o CPF: recusa antes disso, sem nem reservar um desafio.
+    const insert = vi.spyOn(db, "insert");
+    expect(await startSignup(db, tenant.id, SIGNUP, {}, META, deps, at(10 * MINUTE))).toEqual({
+      kind: "error",
+      error: LIMIT,
+      restart: false,
+    });
+    expect(insert).not.toHaveBeenCalled();
+    expect(await db.select().from(otpCodes)).toHaveLength(rowsBefore);
+    expect(messaging.sent).toHaveLength(10);
+  });
+
+  it("outro IP não é afetado", async () => {
+    await sendsFromIp(10);
+
+    expect(await startEntry(db, tenant.id, { cpf: CPF }, { ...META, ip: "198.51.100.1" }, deps, at(10 * MINUTE))).toEqual({
+      kind: "needs-signup",
+      cpf: CPF,
+    });
+  });
+
+  it("com 9 envios ainda funciona", async () => {
+    await sendsFromIp(9);
+
+    expect(await startEntry(db, tenant.id, { cpf: CPF }, META, deps, at(9 * MINUTE))).toEqual({
+      kind: "needs-signup",
+      cpf: CPF,
+    });
+  });
+
+  it("janela estrita: o envio de exatamente 15 min atrás já não conta", async () => {
+    await sendsFromIp(10);
+
+    expect(await startEntry(db, tenant.id, { cpf: CPF }, META, deps, at(15 * MINUTE))).toEqual({
+      kind: "needs-signup",
+      cpf: CPF,
+    });
+  });
+});
+
 describe("concorrência", () => {
   it("dois verifyCode simultâneos com o código certo abrem uma sessão só", async () => {
     // Repete para dar chance à intercalação entre as duas requisições.

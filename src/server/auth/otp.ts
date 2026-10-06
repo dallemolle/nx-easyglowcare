@@ -41,6 +41,20 @@ export function codeMatches(challengeId: string, code: string, codeHash: string)
   return timingSafeEqual(expected, actual);
 }
 
+/**
+ * O IP já usou todos os envios dos últimos 15 min (entre todas as clínicas, janela estrita,
+ * mesmo limite de `reserveChallenge`)? Consultado ANTES de procurar o CPF, para que a busca de
+ * CPF também fique limitada: um CPF desconhecido não grava nada, então sem isso a varredura
+ * seria livre e a própria mensagem de limite revelaria quais CPFs têm cadastro.
+ */
+export async function isIpAtLimit(db: AnyPgDatabase, ip: string, now: Date = new Date()): Promise<boolean> {
+  const [row] = await db
+    .select({ value: count() })
+    .from(otpCodes)
+    .where(and(eq(otpCodes.ip, ip), gt(otpCodes.createdAt, new Date(now.getTime() - WINDOW_SHORT_MS))));
+  return (row?.value ?? 0) >= MAX_PER_IP_SHORT;
+}
+
 export type ChallengeInput = {
   tenantId: string;
   purpose: "signup" | "login";
